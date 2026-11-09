@@ -3,47 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vapi Live Monitor & Structured Data</title>
+  <title>Wait Time Scout Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
-  <div class="max-w-7xl mx-auto p-6">
-    <header class="flex justify-between items-center border-b border-slate-800 pb-5 mb-8">
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen font-sans antialiased">
+  <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-slate-800 gap-4">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Vapi Call Scout & Outputs</h1>
-        <p class="text-sm text-slate-400 mt-1">Live calls, extracted line items, and assistant structured data</p>
+        <div class="flex items-center gap-3">
+          <span class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </span>
+          <h1 class="text-xl font-bold tracking-tight text-white">Wait Time Scout Monitor</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Real-time IVR navigation, queue times, and structured outputs</p>
       </div>
       <div class="flex items-center gap-3">
         <span id="connectionBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Connecting
         </span>
-        <span class="text-xs bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-slate-400">
-          Calls Tracked: <strong id="callCount" class="text-emerald-400 font-mono">0</strong>
+        <span class="text-xs bg-slate-900 border border-slate-800 px-3.5 py-1.5 rounded-full text-slate-400 font-mono">
+          Scout Calls: <strong id="callCount" class="text-emerald-400 font-bold">0</strong>
         </span>
       </div>
     </header>
 
+    <!-- Main Live Calls Table -->
     <main>
-      <div class="overflow-x-auto bg-slate-900/60 rounded-xl border border-slate-800 shadow-xl">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-800/50 text-slate-400 uppercase tracking-wider text-xs border-b border-slate-800">
-            <tr>
-              <th class="py-3 px-4">Status</th>
-              <th class="py-3 px-4">Call ID</th>
-              <th class="py-3 px-4">Customer</th>
-              <th class="py-3 px-4">Line Items</th>
-              <th class="py-3 px-4">Duration</th>
-              <th class="py-3 px-4 text-right">Details</th>
-            </tr>
-          </thead>
-          <tbody id="callsTableBody" class="divide-y divide-slate-800">
-            <tr id="emptyRow">
-              <td colspan="6" class="py-10 text-center text-slate-500">
-                No active calls or reports received yet.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="bg-slate-900/60 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-800/60 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <tr>
+                <th class="py-3.5 px-4 font-semibold">Status</th>
+                <th class="py-3.5 px-4 font-semibold">Call Target</th>
+                <th class="py-3.5 px-4 font-semibold">Reported Wait Time</th>
+                <th class="py-3.5 px-4 font-semibold">Time to Agent</th>
+                <th class="py-3.5 px-4 font-semibold">System Detected</th>
+                <th class="py-3.5 px-4 font-semibold">Elapsed</th>
+                <th class="py-3.5 px-4 font-semibold text-right">Details</th>
+              </tr>
+            </thead>
+            <tbody id="callsTableBody" class="divide-y divide-slate-800">
+              <tr id="emptyRow">
+                <td colspan="7" class="py-12 text-center text-slate-500">
+                  <p class="text-sm">No live scout calls active at the moment.</p>
+                  <p class="text-[11px] text-slate-600 mt-1">Initiate a test call from Vapi to see live updates</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   </div>
@@ -61,7 +72,7 @@
 
     ws.onopen = () => {
       connectionBadge.className = 'flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Connected';
+      connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Live Connected';
     };
 
     ws.onclose = () => {
@@ -114,54 +125,69 @@
                ${call.status}
              </span>`;
 
-        // Main Call Row
+        const s = call.structuredOutputs || {};
+
+        // Main Row
         const mainRow = document.createElement('tr');
-        mainRow.className = 'hover:bg-slate-800/40 transition-colors font-mono text-xs';
+        mainRow.className = 'hover:bg-slate-800/40 transition-colors font-mono';
         mainRow.innerHTML = `
           <td class="py-3 px-4">${statusBadge}</td>
-          <td class="py-3 px-4 text-slate-300">${call.id.slice(0, 8)}...</td>
-          <td class="py-3 px-4 text-slate-200">${call.customerNumber}</td>
-          <td class="py-3 px-4">
-            <span class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded text-[11px]">
-              ${call.lineItems.length} items
-            </span>
-          </td>
-          <td class="py-3 px-4 text-amber-400">${minutes}:${seconds}</td>
+          <td class="py-3 px-4 text-slate-200 font-sans font-medium">${call.customerNumber}</td>
+          <td class="py-3 px-4 text-cyan-400 font-semibold">${s.waitTimes || s['Wait times'] || '—'}</td>
+          <td class="py-3 px-4 text-amber-300">${s.timeToAgent || s['Time to reach agent'] || '—'}</td>
+          <td class="py-3 px-4 text-indigo-300">${s.systemUsed || s['What was the system used'] || '—'}</td>
+          <td class="py-3 px-4 text-slate-400">${minutes}:${seconds}</td>
           <td class="py-3 px-4 text-right">
-            <button onclick="toggleRow('${call.id}')" class="text-xs font-sans px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">
-              ${isExpanded ? 'Hide Outputs ▲' : 'View Outputs ▼'}
+            <button onclick="toggleRow('${call.id}')" class="font-sans px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">
+              ${isExpanded ? 'Hide ▲' : 'Inspect ▼'}
             </button>
           </td>
         `;
         tableBody.appendChild(mainRow);
 
-        // Expanded Drawer Row
+        // Expanded Drawer showing all your structured fields
         if (isExpanded) {
           const detailRow = document.createElement('tr');
-          detailRow.className = 'bg-slate-900/90 border-b border-slate-800';
+          detailRow.className = 'bg-slate-950/80 border-b border-slate-800';
           detailRow.innerHTML = `
-            <td colspan="6" class="p-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Line Items Section -->
-                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
-                  <h4 class="text-xs uppercase font-semibold text-slate-400 mb-2">Detected Line Items</h4>
-                  ${call.lineItems.length === 0 ? '<p class="text-xs text-slate-500 italic">No line items extracted yet.</p>' : `
-                    <ul class="divide-y divide-slate-800 text-xs">
-                      ${call.lineItems.map(item => `
-                        <li class="py-2 flex justify-between">
-                          <span class="text-slate-200 font-medium">${typeof item === 'string' ? item : (item.name || item.description || item.title || JSON.stringify(item))}</span>
-                          ${item.quantity || item.price ? `<span class="text-emerald-400">${item.quantity ? 'Qty: ' + item.quantity : ''} ${item.price ? '| ' + item.price : ''}</span>` : ''}
-                        </li>
-                      `).join('')}
-                    </ul>
-                  `}
+            <td colspan="7" class="p-5 font-sans">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">What was the system used</div>
+                  <div class="text-sm font-medium text-indigo-300 mt-1">${s.systemUsed || s['What was the system used'] || 'Not captured yet'}</div>
                 </div>
 
-                <!-- Structured JSON Output Section -->
-                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
-                  <h4 class="text-xs uppercase font-semibold text-slate-400 mb-2">Structured Output Schema</h4>
-                  <pre class="text-[11px] font-mono text-emerald-400 bg-black/40 p-3 rounded overflow-x-auto max-h-48 border border-slate-900">${JSON.stringify(call.structuredData, null, 2)}</pre>
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">HOOPs</div>
+                  <div class="text-sm font-medium text-slate-200 mt-1">${s.hoops || s['HOOPs'] || 'Not captured yet'}</div>
                 </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Wait times</div>
+                  <div class="text-sm font-medium text-cyan-400 mt-1">${s.waitTimes || s['Wait times'] || 'Scouting...'}</div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Time to reach agent</div>
+                  <div class="text-sm font-medium text-amber-300 mt-1">${s.timeToAgent || s['Time to reach agent'] || 'Pending...'}</div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Customer experience to agent</div>
+                  <div class="text-sm font-medium text-emerald-400 mt-1">${s.cxToAgent || s['Customer experience to agent'] || 'Evaluating...'}</div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">IVR VA Options</div>
+                  <div class="text-sm font-medium text-slate-300 mt-1">${s.ivrOptions || s['IVR VA Options'] || 'None recorded'}</div>
+                </div>
+
+              </div>
+
+              <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-800/80">
+                <div class="text-[10px] text-slate-400 uppercase font-semibold mb-1">Raw Vapi Payload Artifacts</div>
+                <pre class="text-[11px] font-mono text-slate-400 overflow-x-auto max-h-32">${JSON.stringify(call.rawOutputs, null, 2)}</pre>
               </div>
             </td>
           `;
