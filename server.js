@@ -95,7 +95,8 @@ function extractStructuredOutputs(data) {
 
 // Sync past calls directly from Vapi's REST API
 async function syncPastCallsFromVapi() {
-  if (!VAPI_SECRET) {
+  const apiKey = (process.env.VAPI_SECRET_TOKEN || '').trim();
+  if (!apiKey) {
     console.warn('[Vapi Sync] Skipping sync: VAPI_SECRET_TOKEN is not configured.');
     return;
   }
@@ -104,7 +105,7 @@ async function syncPastCallsFromVapi() {
     console.log('[Vapi Sync] Fetching call history from Vapi...');
     const response = await fetch('https://api.vapi.ai/call?limit=50', {
       headers: {
-        'Authorization': `Bearer ${VAPI_SECRET}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       }
     });
@@ -151,10 +152,10 @@ async function syncPastCallsFromVapi() {
   }
 }
 
-// Perform initial sync on container boot
+// Perform initial sync on boot
 syncPastCallsFromVapi();
 
-// API: Manual Sync Trigger
+// API Endpoints
 app.get('/api/sync-history', async (req, res) => {
   await syncPastCallsFromVapi();
   const sorted = Array.from(callStore.values()).sort(
@@ -164,7 +165,6 @@ app.get('/api/sync-history', async (req, res) => {
   res.json({ success: true, count: sorted.length, calls: sorted });
 });
 
-// API: List Current Calls
 app.get('/api/calls', (req, res) => {
   const sorted = Array.from(callStore.values()).sort(
     (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
@@ -172,55 +172,45 @@ app.get('/api/calls', (req, res) => {
   res.json(sorted);
 });
 
-// API: End / Terminate a Live Call via Vapi REST API
+// Terminate an active call via Vapi REST API
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
+  const apiKey = (process.env.VAPI_SECRET_TOKEN || '').trim();
 
-  if (!VAPI_SECRET) {
-    return res.status(500).json({ error: 'VAPI_SECRET_TOKEN not set on server' });
+  if (!apiKey) {
+    console.error('[Vapi End Call] VAPI_SECRET_TOKEN is missing');
+    return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   }
 
+  console.log(`[Vapi API] Initiating hangup for call: ${id}`);
+
   try {
-    console.log(`[Vapi API] Sending termination command for call ${id}...`);
-    // Attempt standard stop/delete endpoint on Vapi API
-    let response = await fetch(`https://api.vapi.ai/call/${id}`, {
+    const response = await fetch(`https://api.vapi.ai/call/${id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${VAPI_SECRET}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       }
     });
 
-    // Fallback to stop endpoint if DELETE returns non-200
-    if (!response.ok) {
-      response = await fetch(`https://api.vapi.ai/call/${id}/stop`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${VAPI_SECRET}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    const respText = await response.text();
+    console.log(`[Vapi API Result ${response.status}]:`, respText);
+
+    if (response.ok || response.status === 404) {
+      if (callStore.has(id)) {
+        const c = callStore.get(id);
+        c.status = 'ended';
+        c.endedReason = 'manually-ended';
+        c.endedAt = new Date().toISOString();
+        callStore.set(id, c);
+        broadcast('CALL_UPDATED', c);
+      }
+      return res.json({ success: true, message: 'Call ended' });
     }
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`[Vapi End Call Error] Status ${response.status}:`, errText);
-      return res.status(response.status).json({ error: errText });
-    }
-
-    // Immediately update local state to provide fast UX
-    if (callStore.has(id)) {
-      const call = callStore.get(id);
-      call.status = 'ended';
-      call.endedReason = 'manually-stopped';
-      call.endedAt = new Date().toISOString();
-      callStore.set(id, call);
-      broadcast('CALL_UPDATED', call);
-    }
-
-    return res.json({ success: true, message: `Call ${id} ended successfully` });
+    return res.status(response.status).json({ error: respText });
   } catch (err) {
-    console.error('[Vapi End Call Exception]:', err);
+    console.error('[Vapi End Call Exception]:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
