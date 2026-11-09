@@ -18,7 +18,7 @@
           </span>
           <h1 class="text-xl font-bold tracking-tight text-white">Wait Time Scout Monitor</h1>
         </div>
-        <p class="text-xs text-slate-400 mt-1">Live calls, controls, and structured outputs</p>
+        <p class="text-xs text-slate-400 mt-1">Live calls, brand identification, and structured outputs</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
@@ -49,10 +49,10 @@
             <thead class="bg-slate-800/60 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
               <tr>
                 <th class="py-3.5 px-4 font-semibold w-[10%]">Status</th>
-                <th class="py-3.5 px-4 font-semibold w-[16%]">Call Target</th>
+                <th class="py-3.5 px-4 font-semibold w-[18%]">Call Target</th>
                 <th class="py-3.5 px-4 font-semibold w-[16%]">Reported Wait</th>
                 <th class="py-3.5 px-4 font-semibold w-[15%]">Time to Agent</th>
-                <th class="py-3.5 px-4 font-semibold w-[17%]">System Detected</th>
+                <th class="py-3.5 px-4 font-semibold w-[15%]">Brand</th>
                 <th class="py-3.5 px-4 font-semibold w-[12%]">Duration</th>
                 <th class="py-3.5 px-4 font-semibold w-[14%] text-right">Actions</th>
               </tr>
@@ -209,7 +209,13 @@
           <td class="py-3 px-4 text-slate-200 font-sans font-medium truncate">${call.customerNumber}</td>
           <td class="py-3 px-4 text-cyan-400 font-semibold truncate" title="${s.waitTimes || ''}">${s.waitTimes || '—'}</td>
           <td class="py-3 px-4 text-amber-300 truncate" title="${s.timeToAgent || ''}">${s.timeToAgent || '—'}</td>
-          <td class="py-3 px-4 text-indigo-300 truncate" title="${s.systemUsed || ''}">${s.systemUsed || '—'}</td>
+          <td class="py-3 px-4 text-indigo-300 truncate" title="${s.brand || ''}">
+            ${s.brand && s.brand !== '—' ? `
+              <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-sans font-semibold text-[11px]">
+                ${s.brand}
+              </span>
+            ` : '<span class="text-slate-500 font-sans">—</span>'}
+          </td>
           <td class="py-3 px-4 text-slate-400 truncate">${timeDisplay}</td>
           <td class="py-3 px-4 text-right">
             <div class="flex items-center justify-end gap-2">
@@ -237,8 +243,12 @@
             <td colspan="7" class="p-5 font-sans">
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
+                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Brand</div>
+                  <div class="text-xs font-semibold text-indigo-300 mt-1 leading-relaxed break-words">${s.brand || 'Not identified'}</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
                   <div class="text-[10px] text-slate-400 uppercase font-semibold">What was the system used</div>
-                  <div class="text-xs font-medium text-indigo-300 mt-1 leading-relaxed break-words">${s.systemUsed || 'Not captured'}</div>
+                  <div class="text-xs font-medium text-slate-200 mt-1 leading-relaxed break-words">${s.systemUsed || 'Not captured'}</div>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
                   <div class="text-[10px] text-slate-400 uppercase font-semibold">HOOPs</div>
@@ -252,11 +262,11 @@
                   <div class="text-[10px] text-slate-400 uppercase font-semibold">Time to reach agent</div>
                   <div class="text-xs font-medium text-amber-300 mt-1 leading-relaxed break-words">${s.timeToAgent || 'Pending...'}</div>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden sm:col-span-2">
                   <div class="text-[10px] text-slate-400 uppercase font-semibold">Customer experience to agent</div>
                   <div class="text-xs font-medium text-emerald-400 mt-1 leading-relaxed break-words">${s.cxToAgent || 'Evaluating...'}</div>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden sm:col-span-2">
                   <div class="text-[10px] text-slate-400 uppercase font-semibold">IVR VA Options</div>
                   <div class="text-xs font-medium text-slate-300 mt-1 leading-relaxed break-words">${s.ivrOptions || 'None recorded'}</div>
                 </div>

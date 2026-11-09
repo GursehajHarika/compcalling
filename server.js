@@ -55,6 +55,7 @@ function extractStructuredOutputs(data) {
   const normalized = {};
 
   const fieldMap = {
+    'brand': ['brand', 'carrier', 'company', 'organization'],
     'systemUsed': ['what was the system used', 'system_used', 'system used', 'what was the system used?'],
     'hoops': ['hoops', 'hoop'],
     'ivrOptions': ['ivr va options', 'ivr_va_options', 'ivr options', 'ivr va option'],
@@ -112,6 +113,7 @@ async function syncPastCallsFromVapi() {
           updatedAt: call.updatedAt || call.createdAt,
           endedReason: call.endedReason || 'completed',
           structuredOutputs: {
+            brand: parsed.brand || '—',
             systemUsed: parsed.systemUsed || '—',
             hoops: parsed.hoops || '—',
             ivrOptions: parsed.ivrOptions || '—',
@@ -150,7 +152,7 @@ app.get('/api/calls', (req, res) => {
   res.json(sorted);
 });
 
-// Robust End Call route: targets both active controlUrl and standard REST endpoints
+// Robust End Call route
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
 
@@ -158,11 +160,10 @@ app.post('/api/calls/:id/end', async (req, res) => {
     return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   }
 
-  console.log(`[Vapi Hangup] Terminating live telephony session for call: ${id}`);
+  console.log(`[Vapi Hangup] Terminating telephony session for call: ${id}`);
   let callRecord = callStore.get(id);
 
   try {
-    // 1. Fetch live call details to retrieve active controlUrl if not cached
     let controlUrl = callRecord?.controlUrl;
     if (!controlUrl) {
       try {
@@ -178,9 +179,7 @@ app.post('/api/calls/:id/end', async (req, res) => {
       }
     }
 
-    // 2. If active controlUrl exists, post an explicit end-call instruction to drop telephony audio
     if (controlUrl) {
-      console.log(`[Vapi Hangup] Posting end-call message to controlUrl: ${controlUrl}`);
       try {
         await fetch(controlUrl, {
           method: 'POST',
@@ -195,8 +194,7 @@ app.post('/api/calls/:id/end', async (req, res) => {
       }
     }
 
-    // 3. Issue call deletion and stop requests to Vapi REST API
-    const deleteResp = await fetch(`https://api.vapi.ai/call/${id}`, {
+    await fetch(`https://api.vapi.ai/call/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${VAPI_SECRET}`,
@@ -204,7 +202,7 @@ app.post('/api/calls/:id/end', async (req, res) => {
       }
     });
 
-    const stopResp = await fetch(`https://api.vapi.ai/call/${id}/stop`, {
+    await fetch(`https://api.vapi.ai/call/${id}/stop`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${VAPI_SECRET}`,
@@ -212,9 +210,6 @@ app.post('/api/calls/:id/end', async (req, res) => {
       }
     });
 
-    console.log(`[Vapi Hangup Result] DELETE: ${deleteResp.status}, STOP: ${stopResp.status}`);
-
-    // Update state to ended immediately
     if (callStore.has(id)) {
       const c = callStore.get(id);
       c.status = 'ended';
@@ -249,6 +244,7 @@ app.post('/webhook/vapi', (req, res) => {
     startedAt: call.startedAt || now,
     updatedAt: now,
     structuredOutputs: {
+      brand: 'Identifying...',
       systemUsed: 'Scanning...',
       hoops: 'Scanning...',
       ivrOptions: 'Listening...',
@@ -258,7 +254,6 @@ app.post('/webhook/vapi', (req, res) => {
     }
   };
 
-  // Cache controlUrl from live payloads
   const liveControlUrl = call.monitor?.controlUrl || message.monitor?.controlUrl || call.controlUrl;
   if (liveControlUrl) {
     record.controlUrl = liveControlUrl;
