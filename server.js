@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN;
 
 app.use(cors());
