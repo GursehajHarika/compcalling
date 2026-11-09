@@ -11,24 +11,54 @@ const wss = new WebSocketServer({ server });
 
 const PORT = parseInt(process.env.PORT, 10) || 8080;
 const HOST = '0.0.0.0';
-const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN; // Can also be used as your Vapi Private Key
+const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN;
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory call registry: callId -> Call Details
+// In-memory call registry: callId -> Call Object
 const callStore = new Map();
 
+// Broadcast event payload to all open WebSocket connections
 function broadcast(event, data) {
   const payload = JSON.stringify({ event, data });
   wss.clients.forEach((client) => {
-    if (client.readyState === 1) client.send(payload);
+    if (client.readyState === 1) { // 1 = OPEN
+      client.send(payload);
+    }
   });
 }
 
-// Universal normalizer for Vapi's UUID-based structured output objects
+// Deep scanner to inspect all potential locations for structured outputs
+function findStructuredData(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+
+  const candidates = [
+    obj.artifact?.structuredOutputs,
+    obj.call?.artifact?.structuredOutputs,
+    obj.analysis?.structuredData,
+    obj.call?.analysis?.structuredData,
+    obj.artifact?.structuredData,
+    obj.call?.artifact?.structuredData,
+    obj.structuredOutputs,
+    obj.structuredData,
+    obj.message?.artifact?.structuredOutputs,
+    obj.message?.analysis?.structuredData,
+    obj.message?.structuredData
+  ];
+
+  for (const c of candidates) {
+    if (c && typeof c === 'object' && Object.keys(c).length > 0) {
+      return c;
+    }
+  }
+  return null;
+}
+
+// Normalizer for Vapi's UUID-based structured output objects: { name, result }
 function extractStructuredOutputs(data) {
   if (!data || typeof data !== 'object') return {};
   const normalized = {};
@@ -46,6 +76,7 @@ function extractStructuredOutputs(data) {
     let fieldName = key;
     let fieldValue = val;
 
+    // Unpack UUID-keyed objects: { name: "...", result: "..." }
     if (val && typeof val === 'object' && val.name && val.result !== undefined) {
       fieldName = val.name;
       fieldValue = val.result;
@@ -62,15 +93,15 @@ function extractStructuredOutputs(data) {
   return normalized;
 }
 
-// Fetch historical calls directly from Vapi API
+// Sync past calls directly from Vapi's REST API
 async function syncPastCallsFromVapi() {
   if (!VAPI_SECRET) {
-    console.warn('[Vapi Sync] Skipping API sync: VAPI_SECRET_TOKEN is not configured.');
+    console.warn('[Vapi Sync] Skipping sync: VAPI_SECRET_TOKEN is not configured.');
     return;
   }
 
   try {
-    console.log('[Vapi Sync] Fetching recent call history from Vapi...');
+    console.log('[Vapi Sync] Fetching call history from Vapi...');
     const response = await fetch('https://api.vapi.ai/call?limit=50', {
       headers: {
         'Authorization': `Bearer ${VAPI_SECRET}`,
@@ -79,14 +110,14 @@ async function syncPastCallsFromVapi() {
     });
 
     if (!response.ok) {
-      console.error(`[Vapi Sync Error] Status ${response.status}:${await response.text()}`);
+      console.error(`[Vapi Sync Error] Status ${response.status}: ${await response.text()}`);
       return;
     }
 
     const pastCalls = await response.json();
     if (Array.isArray(pastCalls)) {
       pastCalls.forEach((call) => {
-        const rawStructured = call.analysis?.structuredData || call.artifact?.structuredData || {};
+        const rawStructured = findStructuredData(call) || {};
         const parsed = extractStructuredOutputs(rawStructured);
 
         const record = {
@@ -109,7 +140,6 @@ async function syncPastCallsFromVapi() {
           rawOutputs: rawStructured
         };
 
-        // Don't overwrite if webhook already tracks a live status
         if (!callStore.has(call.id) || callStore.get(call.id).status === 'ended') {
           callStore.set(call.id, record);
         }
@@ -121,10 +151,10 @@ async function syncPastCallsFromVapi() {
   }
 }
 
-// Initial sync on boot
+// Perform initial sync on container boot
 syncPastCallsFromVapi();
 
-// API endpoint to trigger sync manually from frontend
+// API: Manual Sync Trigger
 app.get('/api/sync-history', async (req, res) => {
   await syncPastCallsFromVapi();
   const sorted = Array.from(callStore.values()).sort(
@@ -134,7 +164,7 @@ app.get('/api/sync-history', async (req, res) => {
   res.json({ success: true, count: sorted.length, calls: sorted });
 });
 
-// Returns current sorted calls
+// API: List Current Calls
 app.get('/api/calls', (req, res) => {
   const sorted = Array.from(callStore.values()).sort(
     (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
@@ -142,18 +172,73 @@ app.get('/api/calls', (req, res) => {
   res.json(sorted);
 });
 
-// WebSocket Connection
-wss.on('connection', (ws) => {
-  const sorted = Array.from(callStore.values()).sort(
-    (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
-  );
-  ws.send(JSON.stringify({ event: 'INIT_STATE', data: sorted }));
+// API: End / Terminate a Live Call via Vapi REST API
+app.post('/api/calls/:id/end', async (req, res) => {
+  const { id } = req.params;
+
+  if (!VAPI_SECRET) {
+    return res.status(500).json({ error: 'VAPI_SECRET_TOKEN not set on server' });
+  }
+
+  try {
+    console.log(`[Vapi API] Sending termination command for call ${id}...`);
+    // Attempt standard stop/delete endpoint on Vapi API
+    let response = await fetch(`https://api.vapi.ai/call/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${VAPI_SECRET}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Fallback to stop endpoint if DELETE returns non-200
+    if (!response.ok) {
+      response = await fetch(`https://api.vapi.ai/call/${id}/stop`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${VAPI_SECRET}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[Vapi End Call Error] Status ${response.status}:`, errText);
+      return res.status(response.status).json({ error: errText });
+    }
+
+    // Immediately update local state to provide fast UX
+    if (callStore.has(id)) {
+      const call = callStore.get(id);
+      call.status = 'ended';
+      call.endedReason = 'manually-stopped';
+      call.endedAt = new Date().toISOString();
+      callStore.set(id, call);
+      broadcast('CALL_UPDATED', call);
+    }
+
+    return res.json({ success: true, message: `Call ${id} ended successfully` });
+  } catch (err) {
+    console.error('[Vapi End Call Exception]:', err);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-// Webhook for live events
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Vapi Webhook Handler
 app.post('/webhook/vapi', (req, res) => {
   const { message } = req.body;
-  if (!message || !message.call) return res.status(200).json({ received: true });
+  if (!message || !message.call) {
+    return res.status(200).json({ received: true });
+  }
 
   const call = message.call;
   const callId = call.id;
@@ -163,6 +248,7 @@ app.post('/webhook/vapi', (req, res) => {
     id: callId,
     status: call.status || 'in-progress',
     customerNumber: call.customer?.number || 'Outbound Scout',
+    assistantName: 'Rogers Assistant',
     startedAt: call.startedAt || now,
     updatedAt: now,
     structuredOutputs: {
@@ -176,7 +262,7 @@ app.post('/webhook/vapi', (req, res) => {
     rawOutputs: {}
   };
 
-  const rawStructured = message.analysis?.structuredData || message.artifact?.structuredData || message.structuredData;
+  const rawStructured = findStructuredData(message) || findStructuredData(call);
   if (rawStructured) {
     const parsed = extractStructuredOutputs(rawStructured);
     record.structuredOutputs = { ...record.structuredOutputs, ...parsed };
@@ -185,21 +271,44 @@ app.post('/webhook/vapi', (req, res) => {
 
   if (message.type === 'status-update') {
     record.status = call.status;
-    record.updatedAt = now;
   } else if (message.type === 'end-of-call-report') {
     record.status = 'ended';
-    record.updatedAt = now;
     record.endedReason = message.endedReason || 'completed';
+    if (call.endedAt) record.endedAt = call.endedAt;
   }
 
+  record.updatedAt = now;
   callStore.set(callId, record);
   broadcast('CALL_UPDATED', record);
+
   return res.status(200).json({ success: true });
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.status(200).send('OK'));
+// WebSocket Connection Lifecycle
+wss.on('connection', (ws) => {
+  const sorted = Array.from(callStore.values()).sort(
+    (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
+  );
+  ws.send(JSON.stringify({ event: 'INIT_STATE', data: sorted }));
+});
 
+// Process Protection
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection] at:', promise, 'reason:', reason);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, closing gracefully');
+  server.close(() => {
+    process.exit(0);
+  });
+});
+
+// Start Server
 server.listen(PORT, HOST, () => {
   console.log(`Scout Monitor actively listening on http://${HOST}:${PORT}`);
 });
