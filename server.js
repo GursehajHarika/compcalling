@@ -9,25 +9,30 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const PORT = process.env.PORT || 8080;
+const PORT = parseInt(process.env.PORT, 10) || 8080;
+const HOST = '0.0.0.0';
 const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN;
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory store: callId -> Call Details
+// In-memory call registry: callId -> Call Details
 const callStore = new Map();
 
+// Broadcast event payload to all open WebSocket connections
 function broadcast(event, data) {
   const payload = JSON.stringify({ event, data });
   wss.clients.forEach((client) => {
-    if (client.readyState === 1) {
+    if (client.readyState === 1) { // 1 = OPEN
       client.send(payload);
     }
   });
 }
 
+// WebSocket Connection Lifecycle
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
     event: 'INIT_STATE',
@@ -35,7 +40,7 @@ wss.on('connection', (ws) => {
   }));
 });
 
-// Helper to normalize structured outputs into your defined schema
+// Normalize incoming field keys to match custom schema
 function extractStructuredOutputs(data) {
   if (!data || typeof data !== 'object') return {};
   const normalized = {};
@@ -56,14 +61,25 @@ function extractStructuredOutputs(data) {
         normalized[targetKey] = val;
       }
     }
-    // Also keep the raw key if not mapped
     normalized[key] = val;
   }
   return normalized;
 }
 
+// Routes
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Vapi Webhook Handler
 app.post('/webhook/vapi', (req, res) => {
-  if (VAPI_SECRET && req.headers['x-vapi-secret'] !== VAPI_SECRET) {
+  // Optional security check
+  if (VAPI_SECRET && req.headers['x-vapi-secret'] && req.headers['x-vapi-secret'] !== VAPI_SECRET) {
+    console.warn('[Webhook Auth Warning]: Invalid x-vapi-secret token received');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -122,7 +138,7 @@ app.post('/webhook/vapi', (req, res) => {
               record.rawOutputs = { ...record.rawOutputs, ...args };
             }
           } catch (e) {
-            console.error('Failed to parse tool call args', e);
+            console.error('Failed to parse tool call args:', e);
           }
         });
       }
@@ -151,10 +167,23 @@ app.post('/webhook/vapi', (req, res) => {
   return res.status(200).json({ success: true });
 });
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', calls: callStore.size });
+// Process Protection & Stability
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]:', err);
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Scout Monitor running on port ${PORT}`);
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection] at:', promise, 'reason:', reason);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, closing gracefully');
+  server.close(() => {
+    process.exit(0);
+  });
+});
+
+// Start Server
+server.listen(PORT, HOST, () => {
+  console.log(`Scout Monitor actively listening on http://${HOST}:${PORT}`);
 });
