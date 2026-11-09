@@ -1,3 +1,4 @@
+
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -152,7 +153,7 @@ app.get('/api/calls', (req, res) => {
   res.json(sorted);
 });
 
-// Robust End Call route
+// Dedicated Call Termination Endpoint
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
 
@@ -160,26 +161,24 @@ app.post('/api/calls/:id/end', async (req, res) => {
     return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   }
 
-  console.log(`[Vapi Hangup] Terminating telephony session for call: ${id}`);
-  let callRecord = callStore.get(id);
+  console.log(`[Vapi Hangup] Terminating live call ${id}...`);
 
   try {
-    let controlUrl = callRecord?.controlUrl;
-    if (!controlUrl) {
-      try {
-        const getCall = await fetch(`https://api.vapi.ai/call/${id}`, {
-          headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
-        });
-        if (getCall.ok) {
-          const callData = await getCall.json();
-          controlUrl = callData.monitor?.controlUrl || callData.controlUrl;
-        }
-      } catch (e) {
-        console.warn('[Vapi Hangup] Could not pre-fetch controlUrl');
-      }
+    // 1. Fetch the live call details directly to get the controlUrl or live status
+    const callDetailResp = await fetch(`https://api.vapi.ai/call/${id}`, {
+      headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
+    });
+    
+    let callData = null;
+    if (callDetailResp.ok) {
+      callData = await callDetailResp.json();
     }
 
+    const controlUrl = callData?.monitor?.controlUrl || callData?.controlUrl;
+
+    // 2. If active controlUrl exists, post end-call command directly to the live websocket control bridge
     if (controlUrl) {
+      console.log(`[Vapi Hangup] Sending control end-call to ${controlUrl}`);
       try {
         await fetch(controlUrl, {
           method: 'POST',
@@ -189,12 +188,30 @@ app.post('/api/calls/:id/end', async (req, res) => {
             control: 'end-call'
           })
         });
-      } catch (ctrlErr) {
-        console.error('[Vapi Hangup] controlUrl post failed:', ctrlErr.message);
+      } catch (err) {
+        console.error('[Vapi Hangup] Control URL post error:', err.message);
       }
     }
 
-    await fetch(`https://api.vapi.ai/call/${id}`, {
+    // 3. Fallback: Post to Vapi's Assistant Control API to end the call immediately
+    try {
+      await fetch(`https://api.vapi.ai/call/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${VAPI_SECRET}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assistant: {
+            endCallMessage: "Ending call now.",
+            endCallPhrases: ["hang up"]
+          }
+        })
+      });
+    } catch (e) {}
+
+    // 4. Send official DELETE call request
+    const delRes = await fetch(`https://api.vapi.ai/call/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${VAPI_SECRET}`,
@@ -202,14 +219,10 @@ app.post('/api/calls/:id/end', async (req, res) => {
       }
     });
 
-    await fetch(`https://api.vapi.ai/call/${id}/stop`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${VAPI_SECRET}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const delText = await delRes.text();
+    console.log(`[Vapi DELETE call status ${delRes.status}]:`, delText);
 
+    // Update in-memory record
     if (callStore.has(id)) {
       const c = callStore.get(id);
       c.status = 'ended';
@@ -219,16 +232,18 @@ app.post('/api/calls/:id/end', async (req, res) => {
       broadcast('CALL_UPDATED', c);
     }
 
-    return res.json({ success: true, message: 'Hangup command transmitted' });
+    return res.json({ success: true, message: 'Call termination signal sent.' });
   } catch (err) {
-    console.error('[Vapi Hangup Exception]:', err.message);
+    console.error('[Vapi Hangup Error]:', err);
     return res.status(500).json({ error: err.message });
   }
 });
 
+// Root & Healthcheck Endpoints
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
+// Webhook for Live Call Events
 app.post('/webhook/vapi', (req, res) => {
   const { message } = req.body;
   if (!message || !message.call) return res.status(200).json({ received: true });
@@ -287,11 +302,16 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ event: 'INIT_STATE', data: sorted }));
 });
 
+// Process Protection
 process.on('uncaughtException', (err) => console.error('[Uncaught Exception]:', err));
 process.on('unhandledRejection', (reason, promise) => console.error('[Unhandled Rejection]:', reason));
+
+// Prevent immediate SIGTERM exit so in-flight requests finish
 process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, closing gracefully');
-  server.close(() => process.exit(0));
+  console.log('Received SIGTERM. Keeping socket open for 5 seconds to finish requests...');
+  setTimeout(() => {
+    server.close(() => process.exit(0));
+  }, 5000);
 });
 
 server.listen(PORT, HOST, () => {
