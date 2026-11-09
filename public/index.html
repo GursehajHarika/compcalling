@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vapi Live Call Dashboard</title>
+  <title>Vapi Live Monitor & Structured Data</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
-  <div class="max-w-6xl mx-auto p-6">
+  <div class="max-w-7xl mx-auto p-6">
     <header class="flex justify-between items-center border-b border-slate-800 pb-5 mb-8">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Active Call Scout</h1>
-        <p class="text-sm text-slate-400 mt-1">Real-time status monitoring via Vapi Webhooks</p>
+        <h1 class="text-2xl font-bold tracking-tight">Vapi Call Scout & Outputs</h1>
+        <p class="text-sm text-slate-400 mt-1">Live calls, extracted line items, and assistant structured data</p>
       </div>
       <div class="flex items-center gap-3">
         <span id="connectionBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Connecting
         </span>
         <span class="text-xs bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-slate-400">
-          Live Count: <strong id="callCount" class="text-emerald-400 font-mono">0</strong>
+          Calls Tracked: <strong id="callCount" class="text-emerald-400 font-mono">0</strong>
         </span>
       </div>
     </header>
@@ -31,14 +31,15 @@
               <th class="py-3 px-4">Status</th>
               <th class="py-3 px-4">Call ID</th>
               <th class="py-3 px-4">Customer</th>
+              <th class="py-3 px-4">Line Items</th>
               <th class="py-3 px-4">Duration</th>
-              <th class="py-3 px-4">Last Activity</th>
+              <th class="py-3 px-4 text-right">Details</th>
             </tr>
           </thead>
-          <tbody id="callsTableBody" class="divide-y divide-slate-800 font-mono text-xs">
+          <tbody id="callsTableBody" class="divide-y divide-slate-800">
             <tr id="emptyRow">
-              <td colspan="5" class="py-10 text-center font-sans text-slate-500">
-                No active calls running at the moment.
+              <td colspan="6" class="py-10 text-center text-slate-500">
+                No active calls or reports received yet.
               </td>
             </tr>
           </tbody>
@@ -53,8 +54,8 @@
     const emptyRow = document.getElementById('emptyRow');
     const countBadge = document.getElementById('callCount');
     const connectionBadge = document.getElementById('connectionBadge');
+    const expandedRows = new Set();
 
-    // Setup dynamic WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
@@ -70,18 +71,23 @@
 
     ws.onmessage = (event) => {
       const { event: evtType, data } = JSON.parse(event.data);
-
       if (evtType === 'INIT_STATE') {
         calls.clear();
         data.forEach(call => calls.set(call.id, call));
       } else if (evtType === 'CALL_UPDATED') {
         calls.set(data.id, data);
-      } else if (evtType === 'CALL_ENDED') {
-        calls.delete(data.id);
       }
-
       render();
     };
+
+    function toggleRow(callId) {
+      if (expandedRows.has(callId)) {
+        expandedRows.delete(callId);
+      } else {
+        expandedRows.add(callId);
+      }
+      render();
+    }
 
     function render() {
       countBadge.textContent = calls.size;
@@ -94,30 +100,76 @@
 
       tableBody.innerHTML = '';
       calls.forEach((call) => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-slate-800/40 transition-colors';
-
+        const isExpanded = expandedRows.has(call.id);
         const duration = Math.max(0, Math.floor((Date.now() - new Date(call.startedAt).getTime()) / 1000));
         const minutes = String(Math.floor(duration / 60)).padStart(2, '0');
         const seconds = String(duration % 60).padStart(2, '0');
+        
+        const isLive = ['in-progress', 'ringing', 'queued'].includes(call.status);
+        const statusBadge = isLive
+          ? `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> ${call.status}
+             </span>`
+          : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+               ${call.status}
+             </span>`;
 
-        row.innerHTML = `
-          <td class="py-3 px-4">
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-sans font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-              ${call.status}
-            </span>
-          </td>
+        // Main Call Row
+        const mainRow = document.createElement('tr');
+        mainRow.className = 'hover:bg-slate-800/40 transition-colors font-mono text-xs';
+        mainRow.innerHTML = `
+          <td class="py-3 px-4">${statusBadge}</td>
           <td class="py-3 px-4 text-slate-300">${call.id.slice(0, 8)}...</td>
           <td class="py-3 px-4 text-slate-200">${call.customerNumber}</td>
+          <td class="py-3 px-4">
+            <span class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded text-[11px]">
+              ${call.lineItems.length} items
+            </span>
+          </td>
           <td class="py-3 px-4 text-amber-400">${minutes}:${seconds}</td>
-          <td class="py-3 px-4 text-slate-400 font-sans text-xs">${new Date(call.updatedAt).toLocaleTimeString()}</td>
+          <td class="py-3 px-4 text-right">
+            <button onclick="toggleRow('${call.id}')" class="text-xs font-sans px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">
+              ${isExpanded ? 'Hide Outputs ▲' : 'View Outputs ▼'}
+            </button>
+          </td>
         `;
-        tableBody.appendChild(row);
+        tableBody.appendChild(mainRow);
+
+        // Expanded Drawer Row
+        if (isExpanded) {
+          const detailRow = document.createElement('tr');
+          detailRow.className = 'bg-slate-900/90 border-b border-slate-800';
+          detailRow.innerHTML = `
+            <td colspan="6" class="p-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Line Items Section -->
+                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                  <h4 class="text-xs uppercase font-semibold text-slate-400 mb-2">Detected Line Items</h4>
+                  ${call.lineItems.length === 0 ? '<p class="text-xs text-slate-500 italic">No line items extracted yet.</p>' : `
+                    <ul class="divide-y divide-slate-800 text-xs">
+                      ${call.lineItems.map(item => `
+                        <li class="py-2 flex justify-between">
+                          <span class="text-slate-200 font-medium">${typeof item === 'string' ? item : (item.name || item.description || item.title || JSON.stringify(item))}</span>
+                          ${item.quantity || item.price ? `<span class="text-emerald-400">${item.quantity ? 'Qty: ' + item.quantity : ''} ${item.price ? '| ' + item.price : ''}</span>` : ''}
+                        </li>
+                      `).join('')}
+                    </ul>
+                  `}
+                </div>
+
+                <!-- Structured JSON Output Section -->
+                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                  <h4 class="text-xs uppercase font-semibold text-slate-400 mb-2">Structured Output Schema</h4>
+                  <pre class="text-[11px] font-mono text-emerald-400 bg-black/40 p-3 rounded overflow-x-auto max-h-48 border border-slate-900">${JSON.stringify(call.structuredData, null, 2)}</pre>
+                </div>
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(detailRow);
+        }
       });
     }
 
-    // Refresh duration timers every second
     setInterval(() => {
       if (calls.size > 0) render();
     }, 1000);
