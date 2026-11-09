@@ -11,9 +11,8 @@ const wss = new WebSocketServer({ server });
 
 const PORT = parseInt(process.env.PORT, 10) || 8080;
 const HOST = '0.0.0.0';
-const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN;
+const VAPI_SECRET = process.env.VAPI_SECRET_TOKEN; // Can also be used as your Vapi Private Key
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -22,25 +21,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // In-memory call registry: callId -> Call Details
 const callStore = new Map();
 
-// Broadcast event payload to all open WebSocket connections
 function broadcast(event, data) {
   const payload = JSON.stringify({ event, data });
   wss.clients.forEach((client) => {
-    if (client.readyState === 1) { // 1 = OPEN
-      client.send(payload);
-    }
+    if (client.readyState === 1) client.send(payload);
   });
 }
 
-// WebSocket Connection Lifecycle
-wss.on('connection', (ws) => {
-  ws.send(JSON.stringify({
-    event: 'INIT_STATE',
-    data: Array.from(callStore.values())
-  }));
-});
-
-// Normalize incoming field keys to match custom schema
+// Universal normalizer for Vapi's UUID-based structured output objects
 function extractStructuredOutputs(data) {
   if (!data || typeof data !== 'object') return {};
   const normalized = {};
@@ -55,7 +43,6 @@ function extractStructuredOutputs(data) {
   };
 
   for (const [key, val] of Object.entries(data)) {
-    // Check if item is nested under UUID format: { name: "...", result: "..." }
     let fieldName = key;
     let fieldValue = val;
 
@@ -65,42 +52,108 @@ function extractStructuredOutputs(data) {
     }
 
     const cleanName = String(fieldName).trim().toLowerCase();
-
-    // Map to normalized dashboard key
     for (const [targetKey, synonyms] of Object.entries(fieldMap)) {
       if (synonyms.includes(cleanName)) {
         normalized[targetKey] = fieldValue;
       }
     }
-
-    // Keep direct name assignment as fallback
     normalized[fieldName] = fieldValue;
   }
-
   return normalized;
 }
 
-// Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Fetch historical calls directly from Vapi API
+async function syncPastCallsFromVapi() {
+  if (!VAPI_SECRET) {
+    console.warn('[Vapi Sync] Skipping API sync: VAPI_SECRET_TOKEN is not configured.');
+    return;
+  }
+
+  try {
+    console.log('[Vapi Sync] Fetching recent call history from Vapi...');
+    const response = await fetch('https://api.vapi.ai/call?limit=50', {
+      headers: {
+        'Authorization': `Bearer ${VAPI_SECRET}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`[Vapi Sync Error] Status ${response.status}:${await response.text()}`);
+      return;
+    }
+
+    const pastCalls = await response.json();
+    if (Array.isArray(pastCalls)) {
+      pastCalls.forEach((call) => {
+        const rawStructured = call.analysis?.structuredData || call.artifact?.structuredData || {};
+        const parsed = extractStructuredOutputs(rawStructured);
+
+        const record = {
+          id: call.id,
+          status: call.status || 'ended',
+          customerNumber: call.customer?.number || call.destination?.number || 'Outbound Scout',
+          assistantName: 'Rogers Assistant',
+          startedAt: call.startedAt || call.createdAt,
+          endedAt: call.endedAt,
+          updatedAt: call.updatedAt || call.createdAt,
+          endedReason: call.endedReason || 'completed',
+          structuredOutputs: {
+            systemUsed: parsed.systemUsed || '—',
+            hoops: parsed.hoops || '—',
+            ivrOptions: parsed.ivrOptions || '—',
+            timeToAgent: parsed.timeToAgent || '—',
+            cxToAgent: parsed.cxToAgent || '—',
+            waitTimes: parsed.waitTimes || '—'
+          },
+          rawOutputs: rawStructured
+        };
+
+        // Don't overwrite if webhook already tracks a live status
+        if (!callStore.has(call.id) || callStore.get(call.id).status === 'ended') {
+          callStore.set(call.id, record);
+        }
+      });
+      console.log(`[Vapi Sync] Successfully synced ${pastCalls.length} calls from Vapi.`);
+    }
+  } catch (err) {
+    console.error('[Vapi Sync Exception]:', err.message);
+  }
+}
+
+// Initial sync on boot
+syncPastCallsFromVapi();
+
+// API endpoint to trigger sync manually from frontend
+app.get('/api/sync-history', async (req, res) => {
+  await syncPastCallsFromVapi();
+  const sorted = Array.from(callStore.values()).sort(
+    (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
+  );
+  broadcast('INIT_STATE', sorted);
+  res.json({ success: true, count: sorted.length, calls: sorted });
 });
 
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+// Returns current sorted calls
+app.get('/api/calls', (req, res) => {
+  const sorted = Array.from(callStore.values()).sort(
+    (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
+  );
+  res.json(sorted);
 });
 
-// Vapi Webhook Handler
+// WebSocket Connection
+wss.on('connection', (ws) => {
+  const sorted = Array.from(callStore.values()).sort(
+    (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
+  );
+  ws.send(JSON.stringify({ event: 'INIT_STATE', data: sorted }));
+});
+
+// Webhook for live events
 app.post('/webhook/vapi', (req, res) => {
-  // Optional security check
-  if (VAPI_SECRET && req.headers['x-vapi-secret'] && req.headers['x-vapi-secret'] !== VAPI_SECRET) {
-    console.warn('[Webhook Auth Warning]: Invalid x-vapi-secret token received');
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   const { message } = req.body;
-  if (!message || !message.call) {
-    return res.status(200).json({ received: true });
-  }
+  if (!message || !message.call) return res.status(200).json({ received: true });
 
   const call = message.call;
   const callId = call.id;
@@ -110,7 +163,6 @@ app.post('/webhook/vapi', (req, res) => {
     id: callId,
     status: call.status || 'in-progress',
     customerNumber: call.customer?.number || 'Outbound Scout',
-    assistantName: 'Rogers Assistant',
     startedAt: call.startedAt || now,
     updatedAt: now,
     structuredOutputs: {
@@ -124,80 +176,30 @@ app.post('/webhook/vapi', (req, res) => {
     rawOutputs: {}
   };
 
-  switch (message.type) {
-    case 'status-update':
-      record.status = call.status;
-      record.updatedAt = now;
-
-      if (message.artifact?.structuredData) {
-        const parsed = extractStructuredOutputs(message.artifact.structuredData);
-        record.structuredOutputs = { ...record.structuredOutputs, ...parsed };
-        record.rawOutputs = { ...record.rawOutputs, ...message.artifact.structuredData };
-      }
-      callStore.set(callId, record);
-      broadcast('CALL_UPDATED', record);
-      break;
-
-    case 'tool-calls':
-      if (Array.isArray(message.toolCalls)) {
-        message.toolCalls.forEach((tool) => {
-          try {
-            const args = typeof tool.function?.arguments === 'string'
-              ? JSON.parse(tool.function.arguments)
-              : tool.function?.arguments;
-
-            if (args) {
-              const parsed = extractStructuredOutputs(args);
-              record.structuredOutputs = { ...record.structuredOutputs, ...parsed };
-              record.rawOutputs = { ...record.rawOutputs, ...args };
-            }
-          } catch (e) {
-            console.error('Failed to parse tool call args:', e);
-          }
-        });
-      }
-      record.updatedAt = now;
-      callStore.set(callId, record);
-      broadcast('CALL_UPDATED', record);
-      break;
-
-    case 'end-of-call-report':
-      record.status = 'ended';
-      record.updatedAt = now;
-      record.endedReason = message.endedReason || 'completed';
-
-      const finalOutputs = message.analysis?.structuredData || message.artifact?.structuredData || message.structuredData;
-      if (finalOutputs) {
-        const parsed = extractStructuredOutputs(finalOutputs);
-        record.structuredOutputs = { ...record.structuredOutputs, ...parsed };
-        record.rawOutputs = { ...record.rawOutputs, ...finalOutputs };
-      }
-
-      callStore.set(callId, record);
-      broadcast('CALL_UPDATED', record);
-      break;
+  const rawStructured = message.analysis?.structuredData || message.artifact?.structuredData || message.structuredData;
+  if (rawStructured) {
+    const parsed = extractStructuredOutputs(rawStructured);
+    record.structuredOutputs = { ...record.structuredOutputs, ...parsed };
+    record.rawOutputs = { ...record.rawOutputs, ...rawStructured };
   }
 
+  if (message.type === 'status-update') {
+    record.status = call.status;
+    record.updatedAt = now;
+  } else if (message.type === 'end-of-call-report') {
+    record.status = 'ended';
+    record.updatedAt = now;
+    record.endedReason = message.endedReason || 'completed';
+  }
+
+  callStore.set(callId, record);
+  broadcast('CALL_UPDATED', record);
   return res.status(200).json({ success: true });
 });
 
-// Process Protection & Stability
-process.on('uncaughtException', (err) => {
-  console.error('[Uncaught Exception]:', err);
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/health', (req, res) => res.status(200).send('OK'));
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Unhandled Rejection] at:', promise, 'reason:', reason);
-});
-
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, closing gracefully');
-  server.close(() => {
-    process.exit(0);
-  });
-});
-
-// Start Server
 server.listen(PORT, HOST, () => {
   console.log(`Scout Monitor actively listening on http://${HOST}:${PORT}`);
 });
