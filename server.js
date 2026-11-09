@@ -55,14 +55,28 @@ function extractStructuredOutputs(data) {
   };
 
   for (const [key, val] of Object.entries(data)) {
-    const cleanKey = key.trim().toLowerCase();
+    // Check if item is nested under UUID format: { name: "...", result: "..." }
+    let fieldName = key;
+    let fieldValue = val;
+
+    if (val && typeof val === 'object' && val.name && val.result !== undefined) {
+      fieldName = val.name;
+      fieldValue = val.result;
+    }
+
+    const cleanName = String(fieldName).trim().toLowerCase();
+
+    // Map to normalized dashboard key
     for (const [targetKey, synonyms] of Object.entries(fieldMap)) {
-      if (synonyms.includes(cleanKey)) {
-        normalized[targetKey] = val;
+      if (synonyms.includes(cleanName)) {
+        normalized[targetKey] = fieldValue;
       }
     }
-    normalized[key] = val;
+
+    // Keep direct name assignment as fallback
+    normalized[fieldName] = fieldValue;
   }
+
   return normalized;
 }
 
