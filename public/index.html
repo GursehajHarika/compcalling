@@ -6,11 +6,11 @@
   <title>Wait Time Scout Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-[#0b0f19] text-slate-100 min-h-screen font-sans antialiased">
+<body class="bg-[#0a0d14] text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
   <div class="max-w-7xl mx-auto p-6 space-y-6">
     
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-slate-800 gap-4">
+    <!-- Top Bar -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-5 border-b border-slate-800/80 gap-4">
       <div>
         <div class="flex items-center gap-3">
           <span class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-400">
@@ -18,49 +18,50 @@
           </span>
           <h1 class="text-xl font-bold tracking-tight text-white">Wait Time Scout Monitor</h1>
         </div>
-        <p class="text-xs text-slate-400 mt-1">Live calls, brand identification, and structured outputs</p>
+        <p class="text-xs text-slate-400 mt-1">Live call orchestration, provider discovery, and structured intelligence</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <!-- Filter Tabs -->
+        <!-- Filter Pills -->
         <div class="flex bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
-          <button onclick="setFilter('all')" id="btnFilterAll" class="px-3 py-1 rounded-md bg-indigo-600 text-white font-medium">All (<span id="countAll">0</span>)</button>
-          <button onclick="setFilter('live')" id="btnFilterLive" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">Live (<span id="countLive">0</span>)</button>
-          <button onclick="setFilter('past')" id="btnFilterPast" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">Past (<span id="countPast">0</span>)</button>
+          <button onclick="setFilter('all')" id="btnFilterAll" class="px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition">All (<span id="countAll">0</span>)</button>
+          <button onclick="setFilter('live')" id="btnFilterLive" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition">Live (<span id="countLive">0</span>)</button>
+          <button onclick="setFilter('past')" id="btnFilterPast" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition">Past (<span id="countPast">0</span>)</button>
         </div>
 
         <!-- Sync Button -->
-        <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+        <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg id="syncIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Sync History
         </button>
 
+        <!-- Status Pill -->
         <span id="connectionBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Connecting
         </span>
       </div>
     </header>
 
-    <!-- Table Container -->
+    <!-- Main Table Container -->
     <main>
-      <div class="bg-slate-900/60 rounded-xl border border-slate-800 shadow-2xl overflow-hidden w-full">
+      <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
         <div class="w-full">
           <table class="w-full table-fixed text-left text-xs">
-            <thead class="bg-slate-800/60 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+            <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
               <tr>
-                <th class="py-3.5 px-4 font-semibold w-[10%]">Status</th>
+                <th class="py-3.5 px-4 font-semibold w-[9%]">Status</th>
+                <th class="py-3.5 px-4 font-semibold w-[13%]">Brand</th>
                 <th class="py-3.5 px-4 font-semibold w-[18%]">Call Target</th>
-                <th class="py-3.5 px-4 font-semibold w-[16%]">Reported Wait</th>
-                <th class="py-3.5 px-4 font-semibold w-[15%]">Time to Agent</th>
-                <th class="py-3.5 px-4 font-semibold w-[15%]">Brand</th>
-                <th class="py-3.5 px-4 font-semibold w-[12%]">Duration</th>
-                <th class="py-3.5 px-4 font-semibold w-[14%] text-right">Actions</th>
+                <th class="py-3.5 px-4 font-semibold w-[15%]">Reported Wait</th>
+                <th class="py-3.5 px-4 font-semibold w-[14%]">Time to Agent</th>
+                <th class="py-3.5 px-4 font-semibold w-[16%]">Duration</th>
+                <th class="py-3.5 px-4 font-semibold w-[15%] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody id="callsTableBody" class="divide-y divide-slate-800">
+            <tbody id="callsTableBody" class="divide-y divide-slate-800/60">
               <tr id="emptyRow">
                 <td colspan="7" class="py-12 text-center text-slate-500">
-                  <p class="text-sm">No calls found matching the filter.</p>
+                  <p class="text-sm font-medium">No calls found matching the filter.</p>
                 </td>
               </tr>
             </tbody>
@@ -111,9 +112,9 @@
       ['all', 'live', 'past'].forEach(f => {
         const btn = document.getElementById('btnFilter' + f.charAt(0).toUpperCase() + f.slice(1));
         if (f === filter) {
-          btn.className = 'px-3 py-1 rounded-md bg-indigo-600 text-white font-medium';
+          btn.className = 'px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition';
         } else {
-          btn.className = 'px-3 py-1 rounded-md text-slate-400 hover:text-white';
+          btn.className = 'px-3 py-1 rounded-md text-slate-400 hover:text-white transition';
         }
       });
       render();
@@ -131,7 +132,7 @@
 
     async function endCall(callId, event) {
       event.stopPropagation();
-      if (!confirm('Are you sure you want to hang up this live call?')) return;
+      if (!confirm('Are you sure you want to terminate this live call?')) return;
 
       terminatingCalls.add(callId);
       render();
@@ -145,7 +146,7 @@
           render();
         }
       } catch (e) {
-        alert('Network error while ending call');
+        alert('Network error while terminating call');
         terminatingCalls.delete(callId);
         render();
       }
@@ -196,39 +197,39 @@
           ? `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> ${call.status}
              </span>`
-          : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+          : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700/60">
                ${call.status}
              </span>`;
 
         const s = call.structuredOutputs || {};
 
         const mainRow = document.createElement('tr');
-        mainRow.className = 'hover:bg-slate-800/40 transition-colors font-mono';
+        mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
         mainRow.innerHTML = `
-          <td class="py-3 px-4 truncate">${statusBadge}</td>
-          <td class="py-3 px-4 text-slate-200 font-sans font-medium truncate">${call.customerNumber}</td>
-          <td class="py-3 px-4 text-cyan-400 font-semibold truncate" title="${s.waitTimes || ''}">${s.waitTimes || '—'}</td>
-          <td class="py-3 px-4 text-amber-300 truncate" title="${s.timeToAgent || ''}">${s.timeToAgent || '—'}</td>
-          <td class="py-3 px-4 text-indigo-300 truncate" title="${s.brand || ''}">
+          <td class="py-3.5 px-4 truncate">${statusBadge}</td>
+          <td class="py-3.5 px-4 truncate font-sans">
             ${s.brand && s.brand !== '—' ? `
-              <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-sans font-semibold text-[11px]">
+              <span class="inline-block px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">
                 ${s.brand}
               </span>
-            ` : '<span class="text-slate-500 font-sans">—</span>'}
+            ` : '<span class="text-slate-600 font-sans">—</span>'}
           </td>
-          <td class="py-3 px-4 text-slate-400 truncate">${timeDisplay}</td>
-          <td class="py-3 px-4 text-right">
+          <td class="py-3.5 px-4 text-slate-200 font-sans font-medium truncate">${call.customerNumber}</td>
+          <td class="py-3.5 px-4 text-cyan-400 font-semibold truncate font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
+          <td class="py-3.5 px-4 text-amber-300 font-medium truncate font-sans">${s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>'}</td>
+          <td class="py-3.5 px-4 text-slate-400 truncate">${timeDisplay}</td>
+          <td class="py-3.5 px-4 text-right">
             <div class="flex items-center justify-end gap-2">
               ${isLive ? `
                 <button 
                   onclick="endCall('${call.id}', event)" 
                   ${isTerminating ? 'disabled' : ''}
-                  class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition flex items-center gap-1.5 ${isTerminating ? 'opacity-50 cursor-not-allowed' : ''}">
+                  class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1.5 ${isTerminating ? 'opacity-50 cursor-not-allowed' : ''}">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/></svg>
                   ${isTerminating ? 'Ending...' : 'End'}
                 </button>
               ` : ''}
-              <button onclick="toggleRow('${call.id}')" class="font-sans px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">
+              <button onclick="toggleRow('${call.id}')" class="font-sans px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded border border-slate-700/80 transition">
                 ${isExpanded ? 'Hide ▲' : 'Inspect ▼'}
               </button>
             </div>
@@ -238,38 +239,53 @@
 
         if (isExpanded) {
           const detailRow = document.createElement('tr');
-          detailRow.className = 'bg-slate-950/80 border-b border-slate-800';
+          detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
           detailRow.innerHTML = `
             <td colspan="7" class="p-5 font-sans">
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Brand</div>
-                  <div class="text-xs font-semibold text-indigo-300 mt-1 leading-relaxed break-words">${s.brand || 'Not identified'}</div>
+              <div class="space-y-4">
+                
+                <!-- Top Key Metrics Cards (4 Equal Columns) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Brand</span>
+                    <div class="text-sm font-semibold text-indigo-300 mt-1">${s.brand || '—'}</div>
+                  </div>
+
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span>
+                    <div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div>
+                  </div>
+
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span>
+                    <div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div>
+                  </div>
+
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span>
+                    <div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div>
+                  </div>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">What was the system used</div>
-                  <div class="text-xs font-medium text-slate-200 mt-1 leading-relaxed break-words">${s.systemUsed || 'Not captured'}</div>
+
+                <!-- Deep Intelligence Cards (2 Aligned Equal Columns) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span>
+                    <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p>
+                  </div>
+
+                  <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span>
+                    <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p>
+                  </div>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">HOOPs</div>
-                  <div class="text-xs font-medium text-slate-200 mt-1 leading-relaxed break-words">${s.hoops || 'Not captured'}</div>
+
+                <!-- Customer Experience (Full Width Banner) -->
+                <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg">
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span>
+                  <p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Wait times</div>
-                  <div class="text-xs font-medium text-cyan-400 mt-1 leading-relaxed break-words">${s.waitTimes || '—'}</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Time to reach agent</div>
-                  <div class="text-xs font-medium text-amber-300 mt-1 leading-relaxed break-words">${s.timeToAgent || 'Pending...'}</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden sm:col-span-2">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">Customer experience to agent</div>
-                  <div class="text-xs font-medium text-emerald-400 mt-1 leading-relaxed break-words">${s.cxToAgent || 'Evaluating...'}</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg overflow-hidden sm:col-span-2">
-                  <div class="text-[10px] text-slate-400 uppercase font-semibold">IVR VA Options</div>
-                  <div class="text-xs font-medium text-slate-300 mt-1 leading-relaxed break-words">${s.ivrOptions || 'None recorded'}</div>
-                </div>
+
               </div>
             </td>
           `;
