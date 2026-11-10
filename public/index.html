@@ -544,4 +544,99 @@
 
         const s = call.structuredOutputs || {};
 
-        const mainRow = document.createElement('
+        const mainRow = document.createElement('tr');
+        mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
+        mainRow.innerHTML = `
+          <td class="py-3.5 px-4">${statusBadge}</td>
+          <td class="py-3.5 px-4 font-sans">
+            ${s.brand && s.brand !== '—' ? `
+              <span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">
+                ${s.brand}
+              </span>
+            ` : '<span class="text-slate-600 font-sans">—</span>'}
+          </td>
+          <td class="py-3.5 px-4 text-slate-200 font-sans font-medium">${call.customerNumber}</td>
+          <td class="py-3.5 px-4 text-cyan-400 font-semibold font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
+          <td class="py-3.5 px-4 text-amber-300 font-medium font-sans">${s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>'}</td>
+          <td class="py-3.5 px-4 text-slate-400">${timeDisplay}</td>
+          <td class="py-3.5 px-4 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button 
+                onclick="openTranscript('${call.id}', event)" 
+                class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1"
+                title="View Speech-to-Text Transcript">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                <span class="hidden xl:inline">${isLive ? 'Live Text' : 'Transcript'}</span>
+              </button>
+
+              ${isLive ? `
+                <button 
+                  onclick="endCall('${call.id}', event)" 
+                  ${isTerminating ? 'disabled' : ''}
+                  class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1 ${isTerminating ? 'opacity-50 cursor-not-allowed' : ''}">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/></svg>
+                  <span class="hidden sm:inline">End</span>
+                </button>
+              ` : ''}
+
+              <button onclick="toggleRow('${call.id}')" class="font-sans px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded border border-slate-700/80 transition">
+                ${isExpanded ? 'Hide ▲' : 'Inspect ▼'}
+              </button>
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(mainRow);
+
+        if (isExpanded) {
+          const detailRow = document.createElement('tr');
+          detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
+          detailRow.innerHTML = `
+            <td colspan="7" class="p-4 sm:p-5 font-sans">
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Brand</span>
+                    <div class="text-sm font-semibold text-indigo-300 mt-1">${s.brand || '—'}</div>
+                  </div>
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span>
+                    <div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div>
+                  </div>
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span>
+                    <div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div>
+                  </div>
+                  <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span>
+                    <div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span>
+                    <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p>
+                  </div>
+                  <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span>
+                    <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p>
+                  </div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg">
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span>
+                  <p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p>
+                </div>
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(detailRow);
+        }
+      });
+    }
+
+    setInterval(() => {
+      const hasLive = Array.from(calls.values()).some(c => ['in-progress', 'ringing', 'queued'].includes(c.status));
+      if (hasLive) render();
+    }, 1000);
+  </script>
+</body>
+</html>
