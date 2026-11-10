@@ -163,6 +163,39 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // --- Time Parsing Engine for Averages ---
+    function parseToSec(str) {
+      if (!str || str === '—') return null;
+      let s = String(str).toLowerCase().trim();
+      if (s === 'none' || s === 'n/a' || s === 'identifying...' || s === 'measuring...') return null;
+
+      // Check mm:ss format
+      if (/^\d+:\d+$/.test(s)) {
+        const parts = s.split(':');
+        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      }
+      
+      let secs = 0; let found = false;
+      const minMatch = s.match(/(\d+)\s*(m|min)/);
+      if (minMatch) { secs += parseInt(minMatch[1], 10) * 60; found = true; }
+      
+      const secMatch = s.match(/(\d+)\s*(s|sec)/);
+      if (secMatch) { secs += parseInt(secMatch[1], 10); found = true; }
+      
+      if (!found) {
+        const numMatch = s.match(/^(\d+)$/);
+        if (numMatch) return parseInt(numMatch[1], 10);
+      }
+      return found ? secs : null;
+    }
+
+    function formatSec(seconds) {
+      if (seconds === null || isNaN(seconds)) return '—';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
     const calls = new Map();
     const tableBody = document.getElementById('callsTableBody');
     const emptyRow = document.getElementById('emptyRow');
@@ -392,36 +425,73 @@
       if (currentFilter === 'scheduled') filtered = scheduledCalls;
       if (currentFilter === 'past') filtered = pastCalls;
 
-      // Render Top Summary
-      const latestByBrand = new Map();
+      // --- 1. Render Top Summary (With Computed Averages) ---
+      const callsByBrand = new Map();
       filtered.forEach(c => {
         if (c.status === 'scheduled') return; // Hide scheduled from top summary
         const b = c.structuredOutputs?.brand;
-        if (b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified' && !latestByBrand.has(b)) latestByBrand.set(b, c);
+        const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
+        const brandKey = validBrand ? b : 'Unknown';
+        
+        if (!callsByBrand.has(brandKey)) callsByBrand.set(brandKey, []);
+        callsByBrand.get(brandKey).push(c);
       });
 
-      if (latestByBrand.size === 0) {
+      if (callsByBrand.size === 0) {
         brandSummaryContainer.innerHTML = '';
         brandSummaryContainer.classList.add('hidden');
       } else {
         brandSummaryContainer.classList.remove('hidden');
-        brandSummaryContainer.innerHTML = Array.from(latestByBrand.entries()).map(([brand, c]) => {
-          const isLive = ['in-progress', 'ringing'].includes(c.status);
-          const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
-          const tickMsg = (c.transcript && c.transcript.length > 0) ? c.transcript[c.transcript.length - 1] : null;
+        brandSummaryContainer.innerHTML = Array.from(callsByBrand.entries()).map(([brand, brandCalls]) => {
+          
+          let totalWait = 0, countWait = 0;
+          let totalTTA = 0, countTTA = 0;
+          let totalCallTime = 0;
+          let isLive = false;
+          
+          // brandCalls are naturally sorted newest to oldest because filtered is sorted
+          const latestCall = brandCalls[0]; 
+
+          brandCalls.forEach(c => {
+            if (['in-progress', 'ringing', 'queued'].includes(c.status)) isLive = true;
+            
+            // Add up durations for averaging
+            const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
+            totalCallTime += durSec;
+
+            // Parse and add up LLM wait times
+            const w = parseToSec(c.structuredOutputs?.waitTimes);
+            if (w !== null) { totalWait += w; countWait++; }
+
+            // Parse and add up LLM Time To Agent times
+            const t = parseToSec(c.structuredOutputs?.timeToAgent);
+            if (t !== null) { totalTTA += t; countTTA++; }
+          });
+
+          const avgWait = countWait > 0 ? formatSec(totalWait / countWait) : '—';
+          const avgTTA = countTTA > 0 ? formatSec(totalTTA / countTTA) : '—';
+          const avgCallTime = formatSec(totalCallTime / brandCalls.length);
+          const totalCallsCount = brandCalls.length;
+          
+          const statusIndicator = isLive 
+            ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
+            : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
+
+          const tickMsg = (latestCall.transcript && latestCall.transcript.length > 0) ? latestCall.transcript[latestCall.transcript.length - 1] : null;
+          
           return `
             <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
               <div class="flex justify-between items-start">
                 <div class="flex items-center gap-2">
-                  ${isLive ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>` : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`}
+                  ${statusIndicator}
                   <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wide truncate">${brand}</h3>
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-3 mt-1">
-                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Reported Wait</span><span class="text-xs font-semibold text-cyan-400 truncate block mt-0.5">${c.structuredOutputs.waitTimes || '—'}</span></div>
-                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Time to Agent</span><span class="text-xs font-semibold text-amber-300 truncate block mt-0.5">${c.structuredOutputs.timeToAgent || '—'}</span></div>
-                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Call Time</span><span class="text-xs font-mono text-slate-300 block mt-0.5">${String(Math.floor(durSec/60)).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}</span></div>
-                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Target</span><span class="text-xs font-mono text-slate-400 truncate block mt-0.5">${c.customerNumber}</span></div>
+                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Avg Reported Wait</span><span class="text-xs font-semibold text-cyan-400 truncate block mt-0.5">${avgWait}</span></div>
+                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Avg Time to Agent</span><span class="text-xs font-semibold text-amber-300 truncate block mt-0.5">${avgTTA}</span></div>
+                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Avg Call Time</span><span class="text-xs font-mono text-slate-300 block mt-0.5">${avgCallTime}</span></div>
+                <div><span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Total Calls</span><span class="text-xs font-mono text-slate-200 truncate block mt-0.5 font-bold">${totalCallsCount}</span></div>
               </div>
               ${isLive ? `<div class="mt-1 pt-3 border-t border-slate-700/50 bg-slate-900/40 -mx-4 -mb-4 px-4 pb-4">
                 <div class="flex justify-between items-center mb-1.5"><span class="block text-[9px] uppercase font-semibold text-emerald-400 tracking-wider flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live Audio Feed</span></div>
@@ -431,7 +501,7 @@
         }).join('');
       }
 
-      // Render Table
+      // --- 2. Render Main Table ---
       if (filtered.length === 0) {
         tableBody.innerHTML = ''; tableBody.appendChild(emptyRow); return;
       }
