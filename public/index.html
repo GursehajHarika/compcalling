@@ -6,8 +6,9 @@
   <title>Comp Calling</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Custom scrollbar for transcripts and horizontal scroll */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-track { background: #0b0f19; border-radius: 4px; }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #334155; }
     .ticker-text { transition: all 0.2s ease-in-out; }
@@ -51,7 +52,7 @@
 
         <button onclick="exportCSV()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden sm:inline">Export CSV</span>
+          <span class="hidden sm:inline">Export</span>
         </button>
 
         <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
@@ -67,8 +68,8 @@
 
     <main class="space-y-6">
       
-      <!-- TOP VIEW: Dynamic Brand Summary -->
-      <div id="brandSummaryContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 hidden"></div>
+      <!-- TOP VIEW: Dynamic Brand Summary (Horizontally Scrollable) -->
+      <div id="brandSummaryContainer" class="flex overflow-x-auto gap-4 pb-2 hidden snap-x"></div>
 
       <!-- Table Container -->
       <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
@@ -219,7 +220,7 @@
       ws = new WebSocket(`${protocol}//${window.location.host}`);
       ws.onopen = () => {
         connectionBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Connected';
+        connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Live Connected';
         clearTimeout(reconnectTimeout);
       };
       ws.onclose = () => {
@@ -429,10 +430,10 @@
       if (currentFilter === 'scheduled') filtered = scheduledCalls;
       if (currentFilter === 'past') filtered = pastCalls;
 
-      // --- 1. Render Top Summary (With Computed Averages) ---
+      // --- 1. Render Top Summary (Horizontally Scrollable Flexbox) ---
       const callsByBrand = new Map();
       filtered.forEach(c => {
-        if (c.status === 'scheduled') return; // Hide scheduled from top summary
+        if (c.status === 'scheduled') return; 
         const b = c.structuredOutputs?.brand;
         const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
         const brandKey = validBrand ? b : 'Unknown';
@@ -479,7 +480,7 @@
           const tickMsg = (latestCall.transcript && latestCall.transcript.length > 0) ? latestCall.transcript[latestCall.transcript.length - 1] : null;
           
           return `
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
+            <div class="min-w-[280px] sm:min-w-[320px] max-w-[350px] shrink-0 snap-start bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
               <div class="flex justify-between items-start">
                 <div class="flex items-center gap-2">
                   ${statusIndicator}
@@ -500,58 +501,86 @@
         }).join('');
       }
 
-      // --- 2. Render Main Table ---
+      // --- 2. Render Main Table Grouped By Date ---
       if (filtered.length === 0) {
         tableBody.innerHTML = ''; tableBody.appendChild(emptyRow); return;
       }
       tableBody.innerHTML = '';
+
+      // Group calls by date
+      const groupedCalls = new Map();
       filtered.forEach((c) => {
-        const isExpanded = expandedRows.has(c.id);
-        const isLive = ['in-progress', 'ringing', 'queued'].includes(c.status);
-        const isSched = c.status === 'scheduled';
-        const isTerminating = terminatingCalls.has(c.id);
+        const dateObj = new Date(c.startedAt);
+        const dateKey = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
         
-        let timeDisplay;
-        if (isSched) {
-          timeDisplay = new Date(c.startedAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-        } else {
-          const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
-          const durStr = `${String(Math.floor(durSec/60)).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}`;
-          timeDisplay = isLive ? durStr : `${new Date(c.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (${durStr})`;
+        if (!groupedCalls.has(dateKey)) {
+          groupedCalls.set(dateKey, []);
         }
+        groupedCalls.get(dateKey).push(c);
+      });
 
-        const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
-        const s = c.structuredOutputs || {};
-
-        const mainRow = document.createElement('tr');
-        mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
-        mainRow.innerHTML = `
-          <td class="py-3.5 px-4"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStyle}">${isLive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>' : ''}${c.status}</span></td>
-          <td class="py-3.5 px-4 font-sans">${s.brand && s.brand !== '—' ? `<span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">${s.brand}</span>` : '<span class="text-slate-600 font-sans">—</span>'}</td>
-          <td class="py-3.5 px-4 text-slate-200 font-sans font-medium">${c.customerNumber}</td>
-          <td class="py-3.5 px-4 text-cyan-400 font-semibold font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
-          <td class="py-3.5 px-4 text-amber-300 font-medium font-sans">${s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>'}</td>
-          <td class="py-3.5 px-4 text-slate-400 text-[11px]">${timeDisplay}</td>
-          <td class="py-3.5 px-4 text-right">
-            <div class="flex items-center justify-end gap-1.5">
-              ${isSched ? `
-                <button onclick="cancelScheduledCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">Cancel</button>
-              ` : `
-                <button onclick="openTranscript('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1"><span class="hidden xl:inline">${isLive ? 'Live Text' : 'Transcript'}</span></button>
-                ${isLive ? `<button onclick="endCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">End</button>` : ''}
-                <button onclick="toggleRow('${c.id}')" class="font-sans px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded border border-slate-700/80 transition">${isExpanded ? 'Hide ▲' : 'Inspect ▼'}</button>
-              `}
-            </div>
+      // Render groups
+      groupedCalls.forEach((callsInGroup, dateKey) => {
+        
+        // Render Date Header
+        const dateHeaderRow = document.createElement('tr');
+        dateHeaderRow.className = 'bg-slate-900/80 border-b border-slate-800/80';
+        dateHeaderRow.innerHTML = `
+          <td colspan="7" class="py-2.5 px-4 font-semibold text-[11px] text-indigo-300 uppercase tracking-widest">
+            ${dateKey}
           </td>
         `;
-        tableBody.appendChild(mainRow);
+        tableBody.appendChild(dateHeaderRow);
 
-        if (isExpanded && !isSched) {
-          const detailRow = document.createElement('tr');
-          detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
-          detailRow.innerHTML = `<td colspan="7" class="p-4 sm:p-5 font-sans"><div class="space-y-4"><div class="grid grid-cols-2 md:grid-cols-4 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Brand</span><div class="text-sm font-semibold text-indigo-300 mt-1">${s.brand || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span><div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span><div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span><div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p></div></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span><p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p></div></div></td>`;
-          tableBody.appendChild(detailRow);
-        }
+        // Render Calls inside this date
+        callsInGroup.forEach((c) => {
+          const isExpanded = expandedRows.has(c.id);
+          const isLive = ['in-progress', 'ringing', 'queued'].includes(c.status);
+          const isSched = c.status === 'scheduled';
+          const isTerminating = terminatingCalls.has(c.id);
+          
+          let timeDisplay;
+          if (isSched) {
+            timeDisplay = new Date(c.startedAt).toLocaleString([], { hour: '2-digit', minute:'2-digit' });
+          } else {
+            const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
+            const durStr = `${String(Math.floor(durSec/60)).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}`;
+            timeDisplay = isLive ? durStr : `${new Date(c.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (${durStr})`;
+          }
+
+          const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
+          const s = c.structuredOutputs || {};
+
+          const mainRow = document.createElement('tr');
+          mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
+          mainRow.innerHTML = `
+            <td class="py-3.5 px-4"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStyle}">${isLive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>' : ''}${c.status}</span></td>
+            <td class="py-3.5 px-4 font-sans">${s.brand && s.brand !== '—' ? `<span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">${s.brand}</span>` : '<span class="text-slate-600 font-sans">—</span>'}</td>
+            <td class="py-3.5 px-4 text-slate-200 font-sans font-medium">${c.customerNumber}</td>
+            <td class="py-3.5 px-4 text-cyan-400 font-semibold font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
+            <td class="py-3.5 px-4 text-amber-300 font-medium font-sans">${s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>'}</td>
+            <td class="py-3.5 px-4 text-slate-400 text-[11px]">${timeDisplay}</td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                ${isSched ? `
+                  <button onclick="cancelScheduledCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">Cancel</button>
+                ` : `
+                  <button onclick="openTranscript('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1"><span class="hidden xl:inline">${isLive ? 'Live Text' : 'Transcript'}</span></button>
+                  ${isLive ? `<button onclick="endCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">End</button>` : ''}
+                  <button onclick="toggleRow('${c.id}')" class="font-sans px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded border border-slate-700/80 transition">${isExpanded ? 'Hide ▲' : 'Inspect ▼'}</button>
+                `}
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(mainRow);
+
+          if (isExpanded && !isSched) {
+            const detailRow = document.createElement('tr');
+            detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
+            detailRow.innerHTML = `<td colspan="7" class="p-4 sm:p-5 font-sans"><div class="space-y-4"><div class="grid grid-cols-2 md:grid-cols-4 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Brand</span><div class="text-sm font-semibold text-indigo-300 mt-1">${s.brand || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span><div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span><div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span><div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p></div></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span><p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p></div></div></td>`;
+            tableBody.appendChild(detailRow);
+          }
+        });
       });
     }
 
