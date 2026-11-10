@@ -219,7 +219,7 @@
       ws = new WebSocket(`${protocol}//${window.location.host}`);
       ws.onopen = () => {
         connectionBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Live Connected';
+        connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Connected';
         clearTimeout(reconnectTimeout);
       };
       ws.onclose = () => {
