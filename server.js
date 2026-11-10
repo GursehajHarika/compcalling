@@ -22,7 +22,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory call registry (holds live, past, and scheduled calls)
+// In-memory call registry
 const callStore = new Map();
 
 function broadcast(event, data) {
@@ -74,7 +74,23 @@ function findStructuredData(obj) {
   return null;
 }
 
-// Helper: Make Vapi Outbound Call
+// RESTORED: Parses transcripts from Vapi's historical REST API format
+function parseHistoricalTranscript(call) {
+  if (Array.isArray(call.messages)) {
+    return call.messages
+      .filter(m => m.message || m.content)
+      .map(m => ({
+        role: m.role || 'assistant',
+        text: m.message || m.content,
+        time: m.time || m.timestamp || null
+      }));
+  }
+  if (typeof call.transcript === 'string' && call.transcript.trim()) {
+    return [{ role: 'system', text: call.transcript, time: null }];
+  }
+  return [];
+}
+
 async function makeVapiOutboundCall(targetNumber) {
   const response = await fetch('https://api.vapi.ai/call', {
     method: 'POST',
@@ -100,11 +116,8 @@ setInterval(() => {
       const executeTime = new Date(call.startedAt).getTime();
       if (now >= executeTime) {
         console.log(`[Scheduler] Auto-dialing scheduled call to ${call.customerNumber}`);
-        // 1. Remove the placeholder from UI
         callStore.delete(id);
         broadcast('CALL_DELETED', { id });
-        
-        // 2. Fire the real API call (webhook will ingest the real live data shortly after)
         makeVapiOutboundCall(call.customerNumber).catch(err => {
           console.error(`[Scheduler Error] Failed to auto-dial ${call.customerNumber}:`, err.message);
         });
@@ -113,7 +126,6 @@ setInterval(() => {
   }
 }, 5000);
 
-// Fetch Historical Sync
 async function syncPastCallsFromVapi() {
   if (!VAPI_SECRET) return;
   try {
@@ -125,6 +137,8 @@ async function syncPastCallsFromVapi() {
     if (Array.isArray(pastCalls)) {
       pastCalls.forEach((call) => {
         const parsed = extractStructuredOutputs(findStructuredData(call) || {});
+        const transcript = parseHistoricalTranscript(call);
+
         const record = {
           id: call.id,
           status: call.status || 'ended',
@@ -134,6 +148,7 @@ async function syncPastCallsFromVapi() {
           endedAt: call.endedAt,
           updatedAt: call.updatedAt || call.createdAt,
           endedReason: call.endedReason || 'completed',
+          transcript: transcript,
           structuredOutputs: {
             brand: parsed.brand || '—', systemUsed: parsed.systemUsed || '—',
             hoops: parsed.hoops || '—', ivrOptions: parsed.ivrOptions || '—',
@@ -141,7 +156,6 @@ async function syncPastCallsFromVapi() {
             waitTimes: parsed.waitTimes || '—'
           }
         };
-        // Don't overwrite active/scheduled calls with stale ended states during sync
         if (!callStore.has(call.id) || callStore.get(call.id).status === 'ended') {
           callStore.set(call.id, record);
         }
@@ -159,25 +173,19 @@ app.get('/api/sync-history', async (req, res) => {
   res.json({ success: true, count: sorted.length, calls: sorted });
 });
 
-// Outbound Call / Scheduler Endpoint
 app.post('/api/calls/start', async (req, res) => {
   const { targetNumber, scheduleAt } = req.body;
-
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   if (!targetNumber) return res.status(400).json({ error: 'Target phone number required' });
 
   try {
-    // If a future time was provided, schedule it in memory
     if (scheduleAt) {
       const scheduledTime = new Date(scheduleAt);
       if (scheduledTime.getTime() > Date.now()) {
         const fakeId = 'sched_' + Date.now();
         const scheduledRecord = {
-          id: fakeId,
-          status: 'scheduled',
-          customerNumber: targetNumber,
-          startedAt: scheduledTime.toISOString(),
-          updatedAt: new Date().toISOString(),
+          id: fakeId, status: 'scheduled', customerNumber: targetNumber,
+          startedAt: scheduledTime.toISOString(), updatedAt: new Date().toISOString(),
           structuredOutputs: { brand: 'Scheduled Automated Dial', systemUsed: '—', hoops: '—', ivrOptions: '—', timeToAgent: '—', cxToAgent: '—', waitTimes: '—' }
         };
         callStore.set(fakeId, scheduledRecord);
@@ -185,8 +193,6 @@ app.post('/api/calls/start', async (req, res) => {
         return res.json({ success: true, scheduled: true, call: scheduledRecord });
       }
     }
-
-    // Otherwise, immediately dial
     const callData = await makeVapiOutboundCall(targetNumber);
     return res.json({ success: true, scheduled: false, call: callData });
   } catch (err) {
@@ -194,7 +200,6 @@ app.post('/api/calls/start', async (req, res) => {
   }
 });
 
-// Cancel a scheduled call
 app.delete('/api/calls/schedule/:id', (req, res) => {
   const { id } = req.params;
   if (callStore.has(id) && callStore.get(id).status === 'scheduled') {
@@ -205,7 +210,6 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
   return res.status(404).json({ error: 'Scheduled call not found' });
 });
 
-// End Call Endpoint
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
@@ -217,22 +221,16 @@ app.post('/api/calls/:id/end', async (req, res) => {
       const data = await getCall.json();
       controlUrl = data.monitor?.controlUrl || data.controlUrl;
     }
-
     if (controlUrl) {
-      try {
-        await fetch(controlUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'control', control: 'end-call' }) });
-      } catch (e) {}
+      try { await fetch(controlUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'control', control: 'end-call' }) }); } catch (e) {}
     }
-
     try {
       await fetch(`https://api.vapi.ai/call/${id}/say`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${VAPI_SECRET}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: "Ending call.", endCallAfterSpoken: true })
       });
     } catch (e) {}
-
     await fetch(`https://api.vapi.ai/call/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${VAPI_SECRET}` } });
-
     if (callStore.has(id)) {
       const c = callStore.get(id);
       c.status = 'ended'; c.endedReason = 'manually-ended'; c.endedAt = new Date().toISOString();
@@ -260,6 +258,7 @@ app.post('/webhook/vapi', (req, res) => {
     id: callId, status: call.status || 'in-progress',
     customerNumber: call.customer?.number || 'Outbound Call',
     startedAt: call.startedAt || now, updatedAt: now,
+    transcript: [],
     structuredOutputs: {
       brand: 'Identifying...', systemUsed: 'Scanning...', hoops: 'Scanning...', ivrOptions: 'Listening...', timeToAgent: 'Pending...', cxToAgent: 'Pending...', waitTimes: 'Measuring...'
     }
@@ -281,14 +280,36 @@ app.post('/webhook/vapi', (req, res) => {
       broadcast('TRANSCRIPT_UPDATE', { callId, segment });
     }
   }
+  
+  // RESTORED: Conversation speech update arrays
+  if (message.type === 'conversation-update' && Array.isArray(message.messages)) {
+    record.transcript = message.messages.map(m => ({
+      role: m.role || 'assistant',
+      text: m.message || m.content || '',
+      time: m.time || now
+    }));
+  }
 
   const rawStructured = findStructuredData(message) || findStructuredData(call);
   if (rawStructured) record.structuredOutputs = { ...record.structuredOutputs, ...extractStructuredOutputs(rawStructured) };
 
-  if (message.type === 'status-update') record.status = call.status || record.status;
-  else if (message.type === 'end-of-call-report') {
-    record.status = 'ended'; record.endedReason = message.endedReason || 'completed';
+  if (message.type === 'status-update') {
+    record.status = call.status || record.status;
+  } else if (message.type === 'end-of-call-report') {
+    record.status = 'ended'; 
+    record.endedReason = message.endedReason || 'completed';
     if (call.endedAt) record.endedAt = call.endedAt;
+    
+    // RESTORED: Grab the final formatted artifact transcript on hangup
+    if (Array.isArray(message.artifact?.messages)) {
+      record.transcript = message.artifact.messages.map(m => ({
+        role: m.role || 'assistant',
+        text: m.message || m.content || '',
+        time: m.time || now
+      }));
+    } else if (typeof message.artifact?.transcript === 'string') {
+      record.transcript = [{ role: 'system', text: message.artifact.transcript, time: now }];
+    }
   }
 
   record.updatedAt = now;
