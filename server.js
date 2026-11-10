@@ -13,6 +13,10 @@ const PORT = parseInt(process.env.PORT, 10) || 8080;
 const HOST = '0.0.0.0';
 const VAPI_SECRET = (process.env.VAPI_SECRET_TOKEN || '').trim();
 
+// Use environment variables or fallback to IDs extracted from your previous logs
+const VAPI_ASSISTANT_ID = (process.env.VAPI_ASSISTANT_ID || '944f6021-5305-4895-ad7d-8782fddfcc10').trim();
+const VAPI_PHONE_NUMBER_ID = (process.env.VAPI_PHONE_NUMBER_ID || '8ead1121-e11a-4bd0-b3ba-e1feaacdb242').trim();
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -84,23 +88,6 @@ function extractStructuredOutputs(data) {
   return normalized;
 }
 
-// Format incoming historical messages into an array of transcript segments
-function parseHistoricalTranscript(call) {
-  if (Array.isArray(call.messages)) {
-    return call.messages
-      .filter(m => m.message || m.content)
-      .map(m => ({
-        role: m.role || 'assistant',
-        text: m.message || m.content,
-        time: m.time || m.timestamp || null
-      }));
-  }
-  if (typeof call.transcript === 'string' && call.transcript.trim()) {
-    return [{ role: 'system', text: call.transcript, time: null }];
-  }
-  return [];
-}
-
 async function syncPastCallsFromVapi() {
   if (!VAPI_SECRET) return;
 
@@ -119,18 +106,16 @@ async function syncPastCallsFromVapi() {
       pastCalls.forEach((call) => {
         const rawStructured = findStructuredData(call) || {};
         const parsed = extractStructuredOutputs(rawStructured);
-        const transcript = parseHistoricalTranscript(call);
 
         const record = {
           id: call.id,
           status: call.status || 'ended',
           controlUrl: call.monitor?.controlUrl || call.controlUrl,
-          customerNumber: call.customer?.number || call.destination?.number || 'Outbound',
+          customerNumber: call.customer?.number || call.destination?.number || 'Outbound Scout',
           startedAt: call.startedAt || call.createdAt,
           endedAt: call.endedAt,
           updatedAt: call.updatedAt || call.createdAt,
           endedReason: call.endedReason || 'completed',
-          transcript: transcript,
           structuredOutputs: {
             brand: parsed.brand || '—',
             systemUsed: parsed.systemUsed || '—',
@@ -171,14 +156,50 @@ app.get('/api/calls', (req, res) => {
   res.json(sorted);
 });
 
-// Single call detail endpoint (fetch transcript on demand if needed)
-app.get('/api/calls/:id', (req, res) => {
-  const call = callStore.get(req.params.id);
-  if (!call) return res.status(404).json({ error: 'Call not found' });
-  res.json(call);
+// START CALL ENDPOINT
+app.post('/api/calls/start', async (req, res) => {
+  const { targetNumber } = req.body;
+
+  if (!VAPI_SECRET) {
+    return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
+  }
+  if (!targetNumber) {
+    return res.status(400).json({ error: 'Target phone number is required' });
+  }
+
+  console.log(`[Vapi Outbound] Initiating call to: ${targetNumber}`);
+
+  try {
+    const response = await fetch('https://api.vapi.ai/call', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${VAPI_SECRET}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        assistantId: VAPI_ASSISTANT_ID,
+        phoneNumberId: VAPI_PHONE_NUMBER_ID,
+        customer: {
+          number: targetNumber
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[Vapi Outbound Error ${response.status}]:`, errText);
+      return res.status(response.status).json({ error: errText });
+    }
+
+    const callData = await response.json();
+    return res.json({ success: true, call: callData });
+  } catch (err) {
+    console.error('[Vapi Outbound Exception]:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-// Robust End Call route
+// END CALL ENDPOINT
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
 
@@ -186,22 +207,12 @@ app.post('/api/calls/:id/end', async (req, res) => {
     return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   }
 
-  console.log(`[Vapi Hangup] Terminating telephony session for call: ${id}`);
-  let callRecord = callStore.get(id);
-
   try {
-    let controlUrl = callRecord?.controlUrl;
-    if (!controlUrl) {
-      try {
-        const getCall = await fetch(`https://api.vapi.ai/call/${id}`, { headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
-        });
-        if (getCall.ok) {
-          const callData = await getCall.json();
-          controlUrl = callData.monitor?.controlUrl || callData.controlUrl;
-        }
-      } catch (e) {
-        console.warn('[Vapi Hangup] Could not pre-fetch controlUrl');
-      }
+    const getCall = await fetch(`https://api.vapi.ai/call/${id}`, { headers: { 'Authorization': `Bearer ${VAPI_SECRET}` } });
+    let controlUrl = callStore.get(id)?.controlUrl;
+    if (getCall.ok) {
+      const callData = await getCall.json();
+      controlUrl = callData.monitor?.controlUrl || callData.controlUrl;
     }
 
     if (controlUrl) {
@@ -211,20 +222,24 @@ app.post('/api/calls/:id/end', async (req, res) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'control', control: 'end-call' })
         });
-      } catch (ctrlErr) {
-        console.error('[Vapi Hangup] controlUrl post failed:', ctrlErr.message);
-      }
+      } catch (e) {}
     }
 
     try {
-      await fetch(`https://api.vapi.ai/call/${id}/say`, { method: 'POST', headers: { 'Authorization': `Bearer ${VAPI_SECRET}`,
+      await fetch(`https://api.vapi.ai/call/${id}/say`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${VAPI_SECRET}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: "Ending call.", endCallAfterSpoken: true })
       });
     } catch (e) {}
 
-    await fetch(`https://api.vapi.ai/call/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${VAPI_SECRET}`,
+    await fetch(`https://api.vapi.ai/call/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${VAPI_SECRET}`,
         'Content-Type': 'application/json'
       }
     });
@@ -240,7 +255,6 @@ app.post('/api/calls/:id/end', async (req, res) => {
 
     return res.json({ success: true, message: 'Hangup dispatched' });
   } catch (err) {
-    console.error('[Vapi Hangup Exception]:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -248,24 +262,21 @@ app.post('/api/calls/:id/end', async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// Webhook for live events and transcript streaming
+// Webhook for live events
 app.post('/webhook/vapi', (req, res) => {
   const { message } = req.body;
-  if (!message) return res.status(200).json({ received: true });
+  if (!message || !message.call) return res.status(200).json({ received: true });
 
-  const call = message.call || {};
-  const callId = call.id || message.callId;
-  if (!callId) return res.status(200).json({ received: true });
-
+  const call = message.call;
+  const callId = call.id;
   const now = new Date().toISOString();
 
   let record = callStore.get(callId) || {
     id: callId,
     status: call.status || 'in-progress',
-    customerNumber: call.customer?.number || 'Outbound ',
+    customerNumber: call.customer?.number || 'Outbound Scout',
     startedAt: call.startedAt || now,
     updatedAt: now,
-    transcript: [],
     structuredOutputs: {
       brand: 'Identifying...',
       systemUsed: 'Scanning...',
@@ -273,17 +284,17 @@ app.post('/webhook/vapi', (req, res) => {
       ivrOptions: 'Listening...',
       timeToAgent: 'Pending...',
       cxToAgent: 'Pending...',
-      waitTimes: 'Identifying...'
+      waitTimes: 'Scouting...'
     }
   };
 
   const liveControlUrl = call.monitor?.controlUrl || message.monitor?.controlUrl || call.controlUrl;
   if (liveControlUrl) record.controlUrl = liveControlUrl;
 
-  // Real-time transcript chunk handling
   if (message.type === 'transcript') {
     const text = message.transcript || message.text;
     if (text) {
+      record.transcript = record.transcript || [];
       const segment = {
         role: message.role || (message.transcriptType === 'final' ? 'user' : 'assistant'),
         text: text.trim(),
@@ -291,7 +302,6 @@ app.post('/webhook/vapi', (req, res) => {
         isFinal: message.transcriptType === 'final'
       };
 
-      // Replace interim segment or push final
       if (record.transcript.length > 0 && !record.transcript[record.transcript.length - 1].isFinal && !segment.isFinal) {
         record.transcript[record.transcript.length - 1] = segment;
       } else {
@@ -299,15 +309,6 @@ app.post('/webhook/vapi', (req, res) => {
       }
       broadcast('TRANSCRIPT_UPDATE', { callId, segment });
     }
-  }
-
-  // Conversation speech update
-  if (message.type === 'conversation-update' && Array.isArray(message.messages)) {
-    record.transcript = message.messages.map(m => ({
-      role: m.role || 'assistant',
-      text: m.message || m.content || '',
-      time: m.time || now
-    }));
   }
 
   const rawStructured = findStructuredData(message) || findStructuredData(call);
@@ -322,16 +323,6 @@ app.post('/webhook/vapi', (req, res) => {
     record.status = 'ended';
     record.endedReason = message.endedReason || 'completed';
     if (call.endedAt) record.endedAt = call.endedAt;
-
-    if (Array.isArray(message.artifact?.messages)) {
-      record.transcript = message.artifact.messages.map(m => ({
-        role: m.role || 'assistant',
-        text: m.message || m.content || '',
-        time: m.time || now
-      }));
-    } else if (typeof message.artifact?.transcript === 'string') {
-      record.transcript = [{ role: 'system', text: message.artifact.transcript, time: now }];
-    }
   }
 
   record.updatedAt = now;

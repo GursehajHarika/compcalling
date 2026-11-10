@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Comp Calling Monitor</title>
+  <title>Wait Time Scout Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     /* Custom scrollbar for transcripts */
@@ -26,7 +26,7 @@
           </div>
           <div>
             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              Comp Calling Monitor
+              Wait Time Scout Monitor
             </h1>
             <p class="text-xs text-slate-400 mt-0.5">Live IVR navigation, voice transcripts, and wait-time telemetry</p>
           </div>
@@ -44,6 +44,11 @@
         <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg id="syncIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span class="hidden sm:inline">Sync History</span>
+        </button>
+
+        <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+          <span class="hidden sm:inline">New Call</span>
         </button>
 
         <span id="connectionBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -86,6 +91,29 @@
       </div>
     </main>
 
+  </div>
+
+  <!-- New Call Modal -->
+  <div id="newCallModal" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeNewCallModal()"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-sm overflow-hidden transform transition-all">
+        <div class="p-5 border-b border-slate-800">
+          <h3 class="text-lg leading-6 font-semibold text-white" id="modal-title">Initiate New Call</h3>
+          <p class="text-xs text-slate-400 mt-1">Enter the target phone number for the scout to dial.</p>
+        </div>
+        <div class="p-5">
+          <label for="targetNumberInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Target Phone Number</label>
+          <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+        </div>
+        <div class="bg-slate-950/50 px-5 py-4 flex justify-end gap-3 border-t border-slate-800">
+          <button type="button" onclick="closeNewCallModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Cancel</button>
+          <button type="button" onclick="initiateNewCall()" id="initiateCallBtn" class="flex items-center justify-center min-w-[90px] px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-emerald-900/20 transition">
+            Dial Out
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Responsive Transcript Slide-over Drawer -->
@@ -162,11 +190,11 @@
         connectionBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
         connectionBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Reconnecting...';
         clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(connectWebSocket, 3000); // Try again in 3 seconds
+        reconnectTimeout = setTimeout(connectWebSocket, 3000);
       };
 
       ws.onerror = (err) => {
-        ws.close(); // Force onclose to trigger reconnection loop
+        ws.close();
       };
 
       ws.onmessage = (event) => {
@@ -196,9 +224,51 @@
       };
     }
 
-    // Start connection
     connectWebSocket();
 
+    // --- Outbound Call Logic ---
+    function openNewCallModal() {
+      document.getElementById('targetNumberInput').value = '';
+      document.getElementById('newCallModal').classList.remove('hidden');
+    }
+
+    function closeNewCallModal() {
+      document.getElementById('newCallModal').classList.add('hidden');
+    }
+
+    async function initiateNewCall() {
+      const input = document.getElementById('targetNumberInput').value.trim();
+      if (!input) return alert('Please enter a target phone number.');
+
+      const btn = document.getElementById('initiateCallBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/calls/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetNumber: input })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(`Failed to start call: ${err.error}`);
+        } else {
+          closeNewCallModal();
+          // Set filter to 'live' to immediately see the new call ring out
+          setFilter('live');
+        }
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // --- Actions & Rendering ---
     function setFilter(filter) {
       currentFilter = filter;
       ['all', 'live', 'past'].forEach(f => {
@@ -253,7 +323,6 @@
       render();
     }
 
-    // Transcript Slide-over Drawer Logic
     function openTranscript(callId, event) {
       if (event) event.stopPropagation();
       activeTranscriptCallId = callId;
@@ -300,7 +369,7 @@
           `;
         }
 
-        const roleName = isAssistant ? (call.structuredOutputs?.brand || 'Agent / IVR') : 'Bot';
+        const roleName = isAssistant ? (call.structuredOutputs?.brand || 'Agent / IVR') : 'Scout Bot';
         const bgBubble = isAssistant ? 'bg-slate-800/90 text-slate-200 border border-slate-700/70' : 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/30';
         const align = isAssistant ? 'items-start mr-8' : 'items-end ml-8';
         const textMuted = isAssistant ? 'text-indigo-400' : 'text-slate-400';
@@ -348,11 +417,8 @@
       filtered.forEach(call => {
         const b = call.structuredOutputs?.brand;
         const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
-        
-        // Use brand name if found, else group unknowns under 'Unknown'
         const brandKey = validBrand ? b : 'Unknown';
         
-        // We only map the first (newest) call per brand because callList is sorted by date desc
         if (!latestByBrand.has(brandKey)) {
           latestByBrand.set(brandKey, call);
         }
