@@ -44,9 +44,14 @@
           <button onclick="setFilter('past')" id="btnFilterPast" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition">Past (<span id="countPast">0</span>)</button>
         </div>
 
+        <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          <svg id="syncIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span class="hidden sm:inline">Sync History</span>
+        </button>
+
         <button onclick="exportCSV()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden sm:inline">Export</span>
+          <span class="hidden sm:inline">Export CSV</span>
         </button>
 
         <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
@@ -169,7 +174,6 @@
       let s = String(str).toLowerCase().trim();
       if (s === 'none' || s === 'n/a' || s === 'identifying...' || s === 'measuring...') return null;
 
-      // Check mm:ss format
       if (/^\d+:\d+$/.test(s)) {
         const parts = s.split(':');
         return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
@@ -449,21 +453,16 @@
           let totalCallTime = 0;
           let isLive = false;
           
-          // brandCalls are naturally sorted newest to oldest because filtered is sorted
           const latestCall = brandCalls[0]; 
 
           brandCalls.forEach(c => {
             if (['in-progress', 'ringing', 'queued'].includes(c.status)) isLive = true;
-            
-            // Add up durations for averaging
             const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
             totalCallTime += durSec;
 
-            // Parse and add up LLM wait times
             const w = parseToSec(c.structuredOutputs?.waitTimes);
             if (w !== null) { totalWait += w; countWait++; }
 
-            // Parse and add up LLM Time To Agent times
             const t = parseToSec(c.structuredOutputs?.timeToAgent);
             if (t !== null) { totalTTA += t; countTTA++; }
           });
