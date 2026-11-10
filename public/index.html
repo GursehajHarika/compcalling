@@ -21,7 +21,7 @@
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-5 border-b border-slate-800/80 gap-4">
       <div>
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+          <div class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 shadow-sm shadow-indigo-900/20">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
           </div>
           <div>
@@ -36,7 +36,7 @@
       <!-- Action Controls -->
       <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
         <div class="flex bg-slate-900 border border-slate-800/80 rounded-lg p-1 text-xs">
-          <button onclick="setFilter('all')" id="btnFilterAll" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition">All (<span id="countAll">0</span>)</button>
+          <button onclick="setFilter('all')" id="btnFilterAll" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm">All (<span id="countAll">0</span>)</button>
           <button onclick="setFilter('live')" id="btnFilterLive" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition">Live (<span id="countLive">0</span>)</button>
           <button onclick="setFilter('past')" id="btnFilterPast" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition">Past (<span id="countPast">0</span>)</button>
         </div>
@@ -52,8 +52,14 @@
       </div>
     </header>
 
-    <!-- Table Container -->
-    <main>
+    <main class="space-y-6">
+      
+      <!-- TOP VIEW: Dynamic Brand Summary -->
+      <div id="brandSummaryContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 hidden">
+        <!-- Brand Cards injected here via JS -->
+      </div>
+
+      <!-- Table Container -->
       <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs min-w-[700px] lg:min-w-full">
@@ -64,7 +70,7 @@
                 <th class="py-3.5 px-4 font-semibold w-[18%]">Call Target</th>
                 <th class="py-3.5 px-4 font-semibold w-[15%]">Reported Wait</th>
                 <th class="py-3.5 px-4 font-semibold w-[14%]">Time to Agent</th>
-                <th class="py-3.5 px-4 font-semibold w-[13%]">Duration</th>
+                <th class="py-3.5 px-4 font-semibold w-[13%]">Call Time</th>
                 <th class="py-3.5 px-4 font-semibold text-right w-[18%]">Actions</th>
               </tr>
             </thead>
@@ -131,6 +137,8 @@
     const tableBody = document.getElementById('callsTableBody');
     const emptyRow = document.getElementById('emptyRow');
     const connectionBadge = document.getElementById('connectionBadge');
+    const brandSummaryContainer = document.getElementById('brandSummaryContainer');
+    
     const expandedRows = new Set();
     const terminatingCalls = new Set();
     let currentFilter = 'all';
@@ -196,7 +204,7 @@
       ['all', 'live', 'past'].forEach(f => {
         const btn = document.getElementById('btnFilter' + f.charAt(0).toUpperCase() + f.slice(1));
         if (f === filter) {
-          btn.className = 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition';
+          btn.className = 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm';
         } else {
           btn.className = 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
         }
@@ -335,6 +343,70 @@
       if (currentFilter === 'live') filtered = liveCalls;
       if (currentFilter === 'past') filtered = pastCalls;
 
+      // 1. Render Top View (Brand Summary)
+      const latestByBrand = new Map();
+      filtered.forEach(call => {
+        const b = call.structuredOutputs?.brand;
+        const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
+        
+        // Use brand name if found, else group unknowns under 'Unknown'
+        const brandKey = validBrand ? b : 'Unknown';
+        
+        // We only map the first (newest) call per brand because callList is sorted by date desc
+        if (!latestByBrand.has(brandKey)) {
+          latestByBrand.set(brandKey, call);
+        }
+      });
+
+      if (latestByBrand.size === 0) {
+        brandSummaryContainer.innerHTML = '';
+        brandSummaryContainer.classList.add('hidden');
+      } else {
+        brandSummaryContainer.classList.remove('hidden');
+        brandSummaryContainer.innerHTML = Array.from(latestByBrand.entries()).map(([brand, call]) => {
+          const s = call.structuredOutputs || {};
+          const isLive = ['in-progress', 'ringing', 'queued'].includes(call.status);
+          
+          const durationSec = Math.max(0, Math.floor(((call.endedAt ? new Date(call.endedAt) : new Date()) - new Date(call.startedAt).getTime()) / 1000));
+          const durationStr = `${String(Math.floor(durationSec / 60)).padStart(2, '0')}:${String(durationSec % 60).padStart(2, '0')}`;
+          
+          const statusIndicator = isLive 
+            ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
+            : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
+
+          return `
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
+              <div class="flex justify-between items-start">
+                <div class="flex items-center gap-2">
+                  ${statusIndicator}
+                  <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wide truncate" title="${brand}">${brand}</h3>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono tracking-wider">${isLive ? 'LIVE' : 'ENDED'}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-3 mt-1">
+                <div>
+                  <span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Reported Wait</span>
+                  <span class="text-xs font-semibold text-cyan-400 truncate block mt-0.5" title="${s.waitTimes || '—'}">${s.waitTimes || '—'}</span>
+                </div>
+                <div>
+                  <span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Time to Agent</span>
+                  <span class="text-xs font-semibold text-amber-300 truncate block mt-0.5" title="${s.timeToAgent || '—'}">${s.timeToAgent || '—'}</span>
+                </div>
+                <div>
+                  <span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Call Time</span>
+                  <span class="text-xs font-mono text-slate-300 block mt-0.5">${durationStr}</span>
+                </div>
+                <div>
+                  <span class="block text-[9px] uppercase font-semibold text-slate-500 tracking-wider">Target</span>
+                  <span class="text-xs font-mono text-slate-400 truncate block mt-0.5">${call.customerNumber}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. Render Main Table
       if (filtered.length === 0) {
         tableBody.innerHTML = '';
         tableBody.appendChild(emptyRow);
@@ -383,7 +455,7 @@
                 class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1"
                 title="View Speech-to-Text Transcript">
                 <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                <span class="hidden sm:inline">${isLive ? 'Live Text' : 'Transcript'}</span>
+                <span class="hidden xl:inline">${isLive ? 'Live Text' : 'Transcript'}</span>
               </button>
 
               ${isLive ? `
@@ -392,7 +464,7 @@
                   ${isTerminating ? 'disabled' : ''}
                   class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1 ${isTerminating ? 'opacity-50 cursor-not-allowed' : ''}">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/></svg>
-                  <span>End</span>
+                  <span class="hidden sm:inline">End</span>
                 </button>
               ` : ''}
 
