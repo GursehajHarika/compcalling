@@ -111,7 +111,7 @@ async function syncPastCallsFromVapi() {
           id: call.id,
           status: call.status || 'ended',
           controlUrl: call.monitor?.controlUrl || call.controlUrl,
-          customerNumber: call.customer?.number || call.destination?.number || 'Outbound Scout',
+          customerNumber: call.customer?.number || call.destination?.number || 'Outbound Call',
           startedAt: call.startedAt || call.createdAt,
           endedAt: call.endedAt,
           updatedAt: call.updatedAt || call.createdAt,
@@ -274,7 +274,7 @@ app.post('/webhook/vapi', (req, res) => {
   let record = callStore.get(callId) || {
     id: callId,
     status: call.status || 'in-progress',
-    customerNumber: call.customer?.number || 'Outbound Scout',
+    customerNumber: call.customer?.number || 'Outbound Call',
     startedAt: call.startedAt || now,
     updatedAt: now,
     structuredOutputs: {
@@ -284,7 +284,7 @@ app.post('/webhook/vapi', (req, res) => {
       ivrOptions: 'Listening...',
       timeToAgent: 'Pending...',
       cxToAgent: 'Pending...',
-      waitTimes: 'Scouting...'
+      waitTimes: 'Measuring...'
     }
   };
 
@@ -346,5 +346,5 @@ process.on('SIGTERM', () => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Scout Monitor actively listening on http://${HOST}:${PORT}`);
+  console.log(`Comp Calling actively listening on http://${HOST}:${PORT}`);
 });

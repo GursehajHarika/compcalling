@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wait Time Scout Monitor</title>
+  <title>Comp Calling</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     /* Custom scrollbar for transcripts */
@@ -11,8 +11,6 @@
     ::-webkit-scrollbar-track { background: #0b0f19; }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #334155; }
-    
-    /* Smooth transition for the live text ticker */
     .ticker-text { transition: all 0.2s ease-in-out; }
   </style>
 </head>
@@ -29,7 +27,7 @@
           </div>
           <div>
             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              Wait Time Scout Monitor
+              Comp Calling
             </h1>
             <p class="text-xs text-slate-400 mt-0.5">Live IVR navigation, voice transcripts, and wait-time telemetry</p>
           </div>
@@ -47,6 +45,11 @@
         <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg id="syncIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span class="hidden sm:inline">Sync History</span>
+        </button>
+
+        <button onclick="exportCSV()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden sm:inline">Export CSV</span>
         </button>
 
         <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
@@ -103,7 +106,7 @@
       <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-sm overflow-hidden transform transition-all">
         <div class="p-5 border-b border-slate-800">
           <h3 class="text-lg leading-6 font-semibold text-white" id="modal-title">Initiate New Call</h3>
-          <p class="text-xs text-slate-400 mt-1">Enter the target phone number for the scout to dial.</p>
+          <p class="text-xs text-slate-400 mt-1">Enter the target phone number for the bot to dial.</p>
         </div>
         <div class="p-5">
           <label for="targetNumberInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Target Phone Number</label>
@@ -230,7 +233,7 @@
             }
           }
         }
-        render(); // Rerender table and live tickers
+        render(); 
       };
     }
 
@@ -264,7 +267,7 @@
 
         if (!res.ok) {
           const err = await res.json();
-          alert(`Failed to start call: ${err.error}`);
+          alert(`Failed to start call: ${err.error || err.message || JSON.stringify(err)}`);
         } else {
           const data = await res.json();
           closeNewCallModal();
@@ -288,6 +291,63 @@
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
+    }
+
+    // --- CSV Export Logic ---
+    function exportCSV() {
+      if (calls.size === 0) {
+        alert('No data available to export.');
+        return;
+      }
+
+      const headers = [
+        "Call ID", "Status", "Brand", "Target Number", 
+        "Reported Wait", "Time to Agent", "Duration (Sec)", 
+        "System Detected", "HOOPs", "Customer Experience", 
+        "IVR Options", "Start Time", "End Time"
+      ];
+
+      const csvRows = [headers.join(",")];
+
+      const callList = Array.from(calls.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+
+      callList.forEach(call => {
+        const s = call.structuredOutputs || {};
+        const durationSec = Math.max(0, Math.floor(((call.endedAt ? new Date(call.endedAt) : new Date()) - new Date(call.startedAt).getTime()) / 1000));
+        
+        // Helper to safely wrap strings in quotes and escape internal quotes for CSV formatting
+        const escapeCSV = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+        const row = [
+          escapeCSV(call.id),
+          escapeCSV(call.status),
+          escapeCSV(s.brand !== '—' ? s.brand : ''),
+          escapeCSV(call.customerNumber),
+          escapeCSV(s.waitTimes !== '—' ? s.waitTimes : ''),
+          escapeCSV(s.timeToAgent !== '—' ? s.timeToAgent : ''),
+          durationSec,
+          escapeCSV(s.systemUsed),
+          escapeCSV(s.hoops),
+          escapeCSV(s.cxToAgent),
+          escapeCSV(s.ivrOptions),
+          escapeCSV(new Date(call.startedAt).toISOString()),
+          escapeCSV(call.endedAt ? new Date(call.endedAt).toISOString() : '')
+        ];
+        
+        csvRows.push(row.join(","));
+      });
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `CompCalling_Export_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     // --- Actions & Rendering ---
@@ -391,7 +451,7 @@
           `;
         }
 
-        const roleName = isAssistant ? (call.structuredOutputs?.brand || 'Agent / IVR') : 'Scout Bot';
+        const roleName = isAssistant ? (call.structuredOutputs?.brand || 'Agent / IVR') : 'Bot';
         const bgBubble = isAssistant ? 'bg-slate-800/90 text-slate-200 border border-slate-700/70' : 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/30';
         const align = isAssistant ? 'items-start mr-8' : 'items-end ml-8';
         const textMuted = isAssistant ? 'text-indigo-400' : 'text-slate-400';
@@ -406,7 +466,6 @@
         `;
       }).join('');
 
-      // Stick to bottom
       feed.scrollTop = feed.scrollHeight;
     }
 
