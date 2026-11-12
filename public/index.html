@@ -527,9 +527,16 @@
       const callsByBrand = new Map();
       filtered.forEach(c => {
         if (c.status === 'scheduled') return; 
-        const b = c.structuredOutputs?.brand;
+        const s = c.structuredOutputs || {};
+        const b = s.brand;
+        const seg = s.segment;
         const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
-        const brandKey = validBrand ? b : 'Unknown';
+        
+        // Split metrics strictly by Brand + Segment (e.g. "Rogers - Consumer")
+        let brandKey = 'Unknown';
+        if (validBrand) {
+           brandKey = seg && seg !== '—' && seg !== 'Unknown' ? `${b} - ${seg}` : b;
+        }
         
         if (!callsByBrand.has(brandKey)) callsByBrand.set(brandKey, []);
         callsByBrand.get(brandKey).push(c);
@@ -614,7 +621,6 @@
           const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
           const s = c.structuredOutputs || {};
           
-          // Display the newly parsed parameters
           const brandDisplay = s.brand && s.brand !== '—' ? s.brand : 'Manual';
           const segmentDisplay = s.segment || '';
           const configDisplay = s.useCase ? `<span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">${s.useCase} (${s.language})</span>` : '<span class="text-slate-600">—</span>';
