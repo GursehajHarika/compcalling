@@ -9,9 +9,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// CRITICAL: Explicitly use Railway's injected PORT or fallback to 8080
-const PORT = parseInt(process.env.PORT, 10) || 8080;
-const HOST = '0.0.0.0'; // Must bind to 0.0.0.0 so Railway health probes reach it
+// Remove hardcoded 8080 fallback to ensure Railway dynamically injects its port
+const PORT = process.env.PORT || 8080;
+const HOST = '0.0.0.0'; 
 const VAPI_SECRET = (process.env.VAPI_SECRET_TOKEN || '').trim();
 
 const VAPI_ASSISTANT_ID = (process.env.VAPI_ASSISTANT_ID || '944f6021-5305-4895-ad7d-8782fddfcc10').trim();
@@ -208,7 +208,9 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
   return res.status(404).json({ error: 'Scheduled call not found' });
 });
 
-// BULLETPROOF END CALL ENDPOINT
+// ========================================================
+// BULLETPROOF END CALL ENDPOINT (Official Vapi Method)
+// ========================================================
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
@@ -216,43 +218,13 @@ app.post('/api/calls/:id/end', async (req, res) => {
   console.log(`[Hangup] Dispatching termination for call: ${id}`);
 
   try {
-    try {
-      await fetch(`https://api.vapi.ai/call/${id}`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${VAPI_SECRET}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ended' })
-      });
-    } catch (e) {}
+    // 1. Force terminate the active session directly through Vapi's API
+    await fetch(`https://api.vapi.ai/call/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
+    });
 
-    let controlUrl = callStore.get(id)?.controlUrl;
-    if (!controlUrl) {
-      try {
-        const getCall = await fetch(`https://api.vapi.ai/call/${id}`, { headers: { 'Authorization': `Bearer ${VAPI_SECRET}` } });
-        if (getCall.ok) {
-          const data = await getCall.json();
-          controlUrl = data.monitor?.controlUrl || data.controlUrl;
-        }
-      } catch(e) {}
-    }
-    
-    if (controlUrl) {
-      try {
-        await fetch(controlUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'control', control: 'end-call' })
-        });
-      } catch (e) {}
-    }
-
-    try {
-      await fetch(`https://api.vapi.ai/call/${id}/say`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${VAPI_SECRET}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: "Goodbye.", endCallAfterSpoken: true })
-      });
-    } catch (e) {}
-
+    // 2. Force Update Dashboard State IMMEDIATELY
     let c = callStore.get(id);
     if (!c) {
       c = { id, customerNumber: 'Unknown', structuredOutputs: {} };
@@ -266,11 +238,12 @@ app.post('/api/calls/:id/end', async (req, res) => {
 
     return res.json({ success: true, message: 'Call terminated successfully.' });
   } catch (err) {
+    console.error(`[Hangup Fatal]`, err.message);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Health check route explicitly returning 200 OK for Railway probe
+// Health check routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
@@ -354,7 +327,6 @@ process.on('uncaughtException', (err) => console.error('[Exception]:', err));
 process.on('unhandledRejection', (reason) => console.error('[Rejection]:', reason));
 process.on('SIGTERM', () => setTimeout(() => server.close(() => process.exit(0)), 5000));
 
-// Bind to HOST (0.0.0.0) and PORT so Railway health checks succeed permanently
 server.listen(PORT, HOST, () => {
   console.log(`Comp Calling successfully bound and listening on http://${HOST}:${PORT}`);
 });
