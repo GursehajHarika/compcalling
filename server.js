@@ -9,9 +9,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Remove hardcoded 8080 fallback to ensure Railway dynamically injects its port
+// Let Railway inject its dynamic port, default to 8080
 const PORT = process.env.PORT || 8080;
-const HOST = '0.0.0.0'; 
 const VAPI_SECRET = (process.env.VAPI_SECRET_TOKEN || '').trim();
 
 const VAPI_ASSISTANT_ID = (process.env.VAPI_ASSISTANT_ID || '944f6021-5305-4895-ad7d-8782fddfcc10').trim();
@@ -208,9 +207,7 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
   return res.status(404).json({ error: 'Scheduled call not found' });
 });
 
-// ========================================================
-// BULLETPROOF END CALL ENDPOINT (Official Vapi Method)
-// ========================================================
+// BULLETPROOF END CALL ENDPOINT
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
@@ -218,13 +215,13 @@ app.post('/api/calls/:id/end', async (req, res) => {
   console.log(`[Hangup] Dispatching termination for call: ${id}`);
 
   try {
-    // 1. Force terminate the active session directly through Vapi's API
+    // Force terminate the active session directly through Vapi's API
     await fetch(`https://api.vapi.ai/call/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
     });
 
-    // 2. Force Update Dashboard State IMMEDIATELY
+    // Force Update Dashboard State IMMEDIATELY
     let c = callStore.get(id);
     if (!c) {
       c = { id, customerNumber: 'Unknown', structuredOutputs: {} };
@@ -243,7 +240,7 @@ app.post('/api/calls/:id/end', async (req, res) => {
   }
 });
 
-// Health check routes
+// Health check routes for Railway Probes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
@@ -327,6 +324,8 @@ process.on('uncaughtException', (err) => console.error('[Exception]:', err));
 process.on('unhandledRejection', (reason) => console.error('[Rejection]:', reason));
 process.on('SIGTERM', () => setTimeout(() => server.close(() => process.exit(0)), 5000));
 
-server.listen(PORT, HOST, () => {
-  console.log(`Comp Calling successfully bound and listening on http://${HOST}:${PORT}`);
+// CRITICAL FIX: Omit the HOST parameter completely. 
+// This forces Node.js to bind to `::` (IPv6 & IPv4 dual-stack) which Railway natively expects.
+server.listen(PORT, () => {
+  console.log(`Comp Calling successfully bound to all interfaces on port ${PORT}`);
 });
