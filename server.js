@@ -3,16 +3,15 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Let Railway inject its dynamic port, default to 8080
 const PORT = process.env.PORT || 8080;
 const VAPI_SECRET = (process.env.VAPI_SECRET_TOKEN || '').trim();
-
 const VAPI_ASSISTANT_ID = (process.env.VAPI_ASSISTANT_ID || '944f6021-5305-4895-ad7d-8782fddfcc10').trim();
 const VAPI_PHONE_NUMBER_ID = (process.env.VAPI_PHONE_NUMBER_ID || '8ead1121-e11a-4bd0-b3ba-e1feaacdb242').trim();
 
@@ -21,8 +20,41 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ========================================================
+// PERSISTENT CACHE (RAILWAY VOLUME)
+// ========================================================
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) { console.error('Failed to create data dir', e); }
+}
+const dbPath = path.join(dataDir, 'calls.json');
+
 const callStore = new Map();
 
+function loadDB() {
+  try {
+    if (fs.existsSync(dbPath)) {
+      const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+      for (const [key, value] of Object.entries(data)) {
+        callStore.set(key, value);
+      }
+      console.log(`[Cache] Loaded ${callStore.size} calls from persistent volume.`);
+    }
+  } catch (e) { console.error("[Cache] Failed to load DB:", e.message); }
+}
+
+function saveDB() {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(Object.fromEntries(callStore), null, 2), 'utf8');
+  } catch (e) { console.error("[Cache] Failed to save DB:", e.message); }
+}
+
+// Load memory on startup
+loadDB();
+
+// ========================================================
+// UTILITIES
+// ========================================================
 function broadcast(event, data) {
   const payload = JSON.stringify({ event, data });
   wss.clients.forEach((client) => {
@@ -108,12 +140,14 @@ async function makeVapiOutboundCall(targetNumber) {
 // Scheduled Call Execution Engine
 setInterval(() => {
   const now = Date.now();
+  let dbChanged = false;
   for (const [id, call] of callStore.entries()) {
     if (call.status === 'scheduled') {
       const executeTime = new Date(call.startedAt).getTime();
       if (now >= executeTime) {
         console.log(`[Scheduler] Auto-dialing scheduled call to ${call.customerNumber}`);
         callStore.delete(id);
+        dbChanged = true;
         broadcast('CALL_DELETED', { id });
         makeVapiOutboundCall(call.customerNumber).catch(err => {
           console.error(`[Scheduler Error] Failed to auto-dial ${call.customerNumber}:`, err.message);
@@ -121,6 +155,7 @@ setInterval(() => {
       }
     }
   }
+  if (dbChanged) saveDB();
 }, 5000);
 
 async function syncPastCallsFromVapi() {
@@ -131,6 +166,7 @@ async function syncPastCallsFromVapi() {
     });
     if (!response.ok) return;
     const pastCalls = await response.json();
+    let dbChanged = false;
     if (Array.isArray(pastCalls)) {
       pastCalls.forEach((call) => {
         const parsed = extractStructuredOutputs(findStructuredData(call) || {});
@@ -155,14 +191,19 @@ async function syncPastCallsFromVapi() {
         };
         if (!callStore.has(call.id) || callStore.get(call.id).status === 'ended') {
           callStore.set(call.id, record);
+          dbChanged = true;
         }
       });
+      if (dbChanged) saveDB();
     }
   } catch (err) {}
 }
 
 syncPastCallsFromVapi();
 
+// ========================================================
+// API ENDPOINTS
+// ========================================================
 app.get('/api/sync-history', async (req, res) => {
   await syncPastCallsFromVapi();
   const sorted = Array.from(callStore.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
@@ -186,6 +227,7 @@ app.post('/api/calls/start', async (req, res) => {
           structuredOutputs: { brand: 'Scheduled Automated Dial', systemUsed: '—', hoops: '—', ivrOptions: '—', timeToAgent: '—', cxToAgent: '—', waitTimes: '—' }
         };
         callStore.set(fakeId, scheduledRecord);
+        saveDB();
         broadcast('CALL_UPDATED', scheduledRecord);
         return res.json({ success: true, scheduled: true, call: scheduledRecord });
       }
@@ -201,13 +243,13 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
   const { id } = req.params;
   if (callStore.has(id) && callStore.get(id).status === 'scheduled') {
     callStore.delete(id);
+    saveDB();
     broadcast('CALL_DELETED', { id });
     return res.json({ success: true });
   }
   return res.status(404).json({ error: 'Scheduled call not found' });
 });
 
-// BULLETPROOF END CALL ENDPOINT
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
@@ -215,22 +257,34 @@ app.post('/api/calls/:id/end', async (req, res) => {
   console.log(`[Hangup] Dispatching termination for call: ${id}`);
 
   try {
-    // Force terminate the active session directly through Vapi's API
+    // 1. Force terminate the active session directly through Vapi's API
     await fetch(`https://api.vapi.ai/call/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
     });
 
-    // Force Update Dashboard State IMMEDIATELY
-    let c = callStore.get(id);
-    if (!c) {
-      c = { id, customerNumber: 'Unknown', structuredOutputs: {} };
+    // 2. Fallback control ping using safely cached URL
+    let controlUrl = callStore.get(id)?.controlUrl;
+    if (controlUrl) {
+      try {
+        await fetch(controlUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'control', control: 'end-call' })
+        });
+      } catch (e) {}
     }
+
+    let c = callStore.get(id);
+    if (!c) c = { id, customerNumber: 'Unknown', structuredOutputs: {} };
+    
     c.status = 'ended';
     c.endedReason = 'manually-ended';
     c.endedAt = new Date().toISOString();
     
     callStore.set(id, c);
+    saveDB();
+    
     broadcast('CALL_UPDATED', c);
 
     return res.json({ success: true, message: 'Call terminated successfully.' });
@@ -240,7 +294,7 @@ app.post('/api/calls/:id/end', async (req, res) => {
   }
 });
 
-// Health check routes for Railway Probes
+// Health check routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
@@ -310,6 +364,7 @@ app.post('/webhook/vapi', (req, res) => {
 
   record.updatedAt = now;
   callStore.set(callId, record);
+  saveDB(); // Instantly write webhook changes to persistent storage
   broadcast('CALL_UPDATED', record);
 
   return res.status(200).json({ success: true });
@@ -324,8 +379,6 @@ process.on('uncaughtException', (err) => console.error('[Exception]:', err));
 process.on('unhandledRejection', (reason) => console.error('[Rejection]:', reason));
 process.on('SIGTERM', () => setTimeout(() => server.close(() => process.exit(0)), 5000));
 
-// CRITICAL FIX: Omit the HOST parameter completely. 
-// This forces Node.js to bind to `::` (IPv6 & IPv4 dual-stack) which Railway natively expects.
 server.listen(PORT, () => {
-  console.log(`Comp Calling successfully bound to all interfaces on port ${PORT}`);
+  console.log(`Comp Calling successfully bound on port ${PORT} with persistent volume caching enabled`);
 });
