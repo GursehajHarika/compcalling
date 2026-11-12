@@ -58,6 +58,25 @@
     </header>
 
     <main class="space-y-6">
+      
+      <!-- NEW: Advanced Filtering Bar -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 backdrop-blur-sm">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">Dashboard Filters</div>
+        <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          <input type="date" id="filterDateInput" onchange="render()" class="w-full sm:w-auto bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition" style="color-scheme: dark;">
+          <select id="filterBucketInput" onchange="render()" class="w-full sm:w-auto bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition">
+            <option value="">All Time Slots</option>
+            <option value="9am - 11am">9am - 11am</option>
+            <option value="12pm - 2pm">12pm - 2pm</option>
+            <option value="4pm - 6pm">4pm - 6pm</option>
+            <option value="7pm - 9pm">7pm - 9pm</option>
+            <option value="Off-Peak">Off-Peak</option>
+          </select>
+          <button onclick="clearAdvancedFilters()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition border border-slate-700 shadow-sm">Clear</button>
+        </div>
+      </div>
+
+      <!-- SUMMARY CARDS SPLIT BY BRAND + SEGMENT + BUCKET -->
       <div id="brandSummaryContainer" class="flex overflow-x-auto gap-4 pb-2 hidden snap-x"></div>
 
       <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
@@ -250,11 +269,23 @@
       }
       return found ? secs : null;
     }
+    
     function formatSec(seconds) {
       if (seconds === null || isNaN(seconds)) return '—';
       const m = Math.floor(seconds / 60);
       const s = Math.floor(seconds % 60);
       return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function getTimeSlot(dateString) {
+      if (!dateString) return 'Off-Peak';
+      const d = new Date(dateString);
+      const h = d.getHours();
+      if (h >= 9 && h < 11) return '9am - 11am';
+      if (h >= 12 && h < 14) return '12pm - 2pm';
+      if (h >= 16 && h < 18) return '4pm - 6pm';
+      if (h >= 19 && h < 21) return '7pm - 9pm';
+      return 'Off-Peak';
     }
 
     const calls = new Map();
@@ -320,6 +351,12 @@
       btn.disabled = true;
       try { await fetch('/api/sync-history'); } catch (e) {} 
       finally { icon.classList.remove('animate-spin'); btn.disabled = false; }
+    }
+
+    function clearAdvancedFilters() {
+      document.getElementById('filterDateInput').value = '';
+      document.getElementById('filterBucketInput').value = '';
+      render();
     }
 
     function openNewCallModal() {
@@ -412,16 +449,18 @@
 
     function exportCSV() {
       if (calls.size === 0) return alert('No data available to export.');
-      const headers = ["Call ID", "Status", "Brand", "Segment", "Use Case", "Language", "Target Number", "Reported Wait", "Time to Agent", "Duration (Sec)", "System Detected", "HOOPs", "Customer Experience", "IVR Options", "Start Time", "End Time"];
+      const headers = ["Call ID", "Status", "Brand", "Segment", "Time Slot", "Use Case", "Language", "Target Number", "Reported Wait", "Time to Agent", "Duration (Sec)", "System Detected", "HOOPs", "Customer Experience", "IVR Options", "Start Time", "End Time"];
       const csvRows = [headers.join(",")];
       const callList = Array.from(calls.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
 
       callList.forEach(c => {
         const s = c.structuredOutputs || {};
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
+        
+        const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
         const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
         const row = [
-          esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(s.useCase), esc(s.language), esc(c.customerNumber),
+          esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(timeSlot), esc(s.useCase), esc(s.language), esc(c.customerNumber),
           esc(s.waitTimes), esc(s.timeToAgent), durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
           esc(new Date(c.startedAt).toISOString()), esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
         ];
@@ -524,22 +563,45 @@
       if (currentFilter === 'scheduled') filtered = scheduledCalls;
       if (currentFilter === 'past') filtered = pastCalls;
 
+      // --- APPLY NEW DASHBOARD FILTERS ---
+      const dateFilterVal = document.getElementById('filterDateInput').value;
+      const bucketFilterVal = document.getElementById('filterBucketInput').value;
+
+      if (dateFilterVal || bucketFilterVal) {
+        filtered = filtered.filter(c => {
+          let matchesDate = true;
+          let matchesBucket = true;
+          
+          const cDate = new Date(c.startedAt);
+          const localDateStr = cDate.getFullYear() + '-' + String(cDate.getMonth()+1).padStart(2,'0') + '-' + String(cDate.getDate()).padStart(2,'0');
+          
+          const timeSlot = c.status === 'scheduled' 
+            ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) 
+            : getTimeSlot(c.startedAt);
+
+          if (dateFilterVal && localDateStr !== dateFilterVal) matchesDate = false;
+          if (bucketFilterVal && timeSlot !== bucketFilterVal) matchesBucket = false;
+          
+          return matchesDate && matchesBucket;
+        });
+      }
+
+      // --- RENDER DYNAMIC SUMMARY CARDS ---
       const callsByBrand = new Map();
       filtered.forEach(c => {
         if (c.status === 'scheduled') return; 
         const s = c.structuredOutputs || {};
         const b = s.brand;
         const seg = s.segment;
-        const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified';
+        const validBrand = b && b !== '—' && b !== 'Identifying...' && b !== 'Not identified' && !b.toLowerCase().includes('unknown');
         
-        // Split metrics strictly by Brand + Segment (e.g. "Rogers - Consumer")
-        let brandKey = 'Unknown';
         if (validBrand) {
-           brandKey = seg && seg !== '—' && seg !== 'Unknown' ? `${b} - ${seg}` : b;
+           const timeSlot = getTimeSlot(c.startedAt);
+           const segStr = seg && seg !== '—' && seg !== 'Unknown' ? ` - ${seg}` : '';
+           const brandKey = `${b}${segStr} (${timeSlot})`;
+           if (!callsByBrand.has(brandKey)) callsByBrand.set(brandKey, []);
+           callsByBrand.get(brandKey).push(c);
         }
-        
-        if (!callsByBrand.has(brandKey)) callsByBrand.set(brandKey, []);
-        callsByBrand.get(brandKey).push(c);
       });
 
       if (callsByBrand.size === 0) {
@@ -621,9 +683,15 @@
           const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
           const s = c.structuredOutputs || {};
           
-          const brandDisplay = s.brand && s.brand !== '—' ? s.brand : 'Manual';
+          const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
+          const brandDisplay = s.brand && s.brand !== '—' && !s.brand.toLowerCase().includes('unknown') ? s.brand : 'Manual Entry';
           const segmentDisplay = s.segment || '';
-          const configDisplay = s.useCase ? `<span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">${s.useCase} (${s.language})</span>` : '<span class="text-slate-600">—</span>';
+          
+          const configDisplay = s.useCase ? `
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] uppercase font-semibold text-slate-300 tracking-wider">${s.useCase} (${s.language})</span>
+              <span class="text-[9px] uppercase font-semibold text-slate-500 tracking-wider">${timeSlot}</span>
+            </div>` : '<span class="text-slate-600">—</span>';
 
           const mainRow = document.createElement('tr');
           mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
