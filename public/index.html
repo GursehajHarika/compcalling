@@ -454,13 +454,11 @@
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
         
         const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
-        
-        // Use hyphens instead of em-dashes to avoid legacy encoding artifacts in Excel
         const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ').replace(/—/g, '-')}"`;
         
         const row = [
           esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(timeSlot), esc(s.useCase), esc(s.language), 
-          esc(c.customerNumber), 
+          `="${c.customerNumber}"`, 
           esc(s.waitTimes), esc(s.timeToAgent), durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
           esc(new Date(c.startedAt).toISOString()), esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
         ];
@@ -524,25 +522,45 @@
     
     function copyTranscript() {
       const c = calls.get(activeTranscriptCallId);
-      if (c && c.transcript) navigator.clipboard.writeText(c.transcript.map(s => `[${s.role.toUpperCase()}]: ${s.text}`).join('\n\n')).then(() => alert('Copied!'));
+      if (c && c.transcript) {
+        // Strip out the system prompt logic before copying
+        const cleanSegments = c.transcript.filter(s => s.role !== 'system');
+        const brandName = c.structuredOutputs?.brand && c.structuredOutputs?.brand !== '—' && !c.structuredOutputs?.brand.toLowerCase().includes('unknown') ? c.structuredOutputs.brand : 'Call Center';
+        
+        const formattedText = cleanSegments.map(s => {
+          // Identify if it is our outbound AI Agent or the Call Center
+          const isOurAI = s.role === 'assistant' || s.role === 'bot';
+          const label = isOurAI ? 'AI AGENT' : brandName.toUpperCase();
+          return `[${label}]: ${s.text}`;
+        }).join('\n\n');
+        
+        navigator.clipboard.writeText(formattedText).then(() => alert('Copied!'));
+      }
     }
 
     function renderTranscriptFeed(call) {
       const feed = document.getElementById('transcriptFeed');
-      const segments = call.transcript || [];
+      
+      // HIDE SYSTEM PROMPTS: Completely filter out the long initial instructions from rendering
+      const segments = (call.transcript || []).filter(seg => seg.role !== 'system');
       document.getElementById('drawerStats').textContent = `${segments.length} message segment${segments.length === 1 ? '' : 's'}`;
 
       if (segments.length === 0) {
         feed.innerHTML = `<div class="text-center py-12 text-slate-500">No speech transcribed yet.<br><span class="text-[11px] text-slate-600">Audio will appear here as both sides speak.</span></div>`;
         return;
       }
+      
+      const brandName = call.structuredOutputs?.brand && call.structuredOutputs?.brand !== '—' && !call.structuredOutputs?.brand.toLowerCase().includes('unknown') ? call.structuredOutputs.brand : 'Call Center';
+
       feed.innerHTML = segments.map(seg => {
-        if (seg.role === 'system') return `<div class="bg-slate-800/40 border border-slate-700/50 p-3 rounded-lg text-slate-300 font-mono text-[11px] whitespace-pre-wrap">${seg.text}</div>`;
-        const isBot = seg.role === 'assistant' || seg.role === 'bot';
+        // Since this is outbound, our AI is the "assistant". The actual call center picking up is the "user"
+        const isOurAI = seg.role === 'assistant' || seg.role === 'bot';
+        
+        // UI Logic: Place our AI on the right (like a standard outgoing text), place the brand on the left
         return `
-          <div class="flex flex-col ${isBot ? 'items-start mr-8' : 'items-end ml-8'} space-y-1">
-            <span class="text-[10px] uppercase font-semibold ${isBot ? 'text-indigo-400' : 'text-slate-400'} tracking-wider px-1">${isBot ? (call.structuredOutputs?.brand || 'Bot') : 'User'}</span>
-            <div class="p-3 rounded-2xl ${isBot ? 'bg-slate-800/90 text-slate-200 border border-slate-700/70' : 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/30'} leading-relaxed max-w-full break-words">${seg.text}</div>
+          <div class="flex flex-col ${isOurAI ? 'items-end ml-8' : 'items-start mr-8'} space-y-1">
+            <span class="text-[10px] uppercase font-semibold ${isOurAI ? 'text-indigo-400' : 'text-slate-400'} tracking-wider px-1">${isOurAI ? 'AI Agent' : brandName}</span>
+            <div class="p-3 rounded-2xl ${!isOurAI ? 'bg-slate-800/90 text-slate-200 border border-slate-700/70' : 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/30'} leading-relaxed max-w-full break-words">${seg.text}</div>
           </div>`;
       }).join('');
       feed.scrollTop = feed.scrollHeight;
