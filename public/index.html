@@ -69,7 +69,6 @@
             <option value="12pm - 2pm">12pm - 2pm</option>
             <option value="4pm - 6pm">4pm - 6pm</option>
             <option value="7pm - 9pm">7pm - 9pm</option>
-            <option value="Off-Peak">Off-Peak</option>
           </select>
           <button onclick="clearAdvancedFilters()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition border border-slate-700 shadow-sm">Clear</button>
         </div>
@@ -163,14 +162,28 @@
             <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Schedule Time Window (Optional)</label>
             <div class="flex gap-3">
               <input type="date" id="scheduleDateInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" style="color-scheme: dark;">
-              <select id="scheduleBucketInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+              <select id="scheduleBucketInput" onchange="handleBucketChange()" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 <option value="">Select Window...</option>
                 <option value="9,11">9:00 AM - 11:00 AM</option>
                 <option value="12,14">12:00 PM - 2:00 PM</option>
                 <option value="16,18">4:00 PM - 6:00 PM</option>
                 <option value="19,21">7:00 PM - 9:00 PM</option>
+                <option value="custom">Custom Window...</option>
               </select>
             </div>
+            
+            <!-- NEW: Custom Time Inputs -->
+            <div id="customBucketDiv" class="hidden gap-3 mt-3 p-3 bg-slate-900 border border-slate-700/60 rounded-lg items-center">
+                <div class="flex-1">
+                    <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">Start Hr (0-23)</label>
+                    <input type="number" id="customBucketStart" min="0" max="23" placeholder="e.g. 14" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">End Hr (0-24)</label>
+                    <input type="number" id="customBucketEnd" min="0" max="24" placeholder="e.g. 16" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
             <p class="text-[10px] text-amber-500/80 mt-2 font-medium">Smart conflict detection will block identical scheduled overlays.</p>
           </div>
 
@@ -237,6 +250,18 @@
       }
     }
 
+    function handleBucketChange() {
+      const val = document.getElementById('scheduleBucketInput').value;
+      const customDiv = document.getElementById('customBucketDiv');
+      if (val === 'custom') {
+        customDiv.classList.remove('hidden');
+        customDiv.classList.add('flex');
+      } else {
+        customDiv.classList.add('hidden');
+        customDiv.classList.remove('flex');
+      }
+    }
+
     function updateClock() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
@@ -273,15 +298,35 @@
       return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
+    function formatTimeBucketString(bucketVal) {
+      if (!bucketVal) return 'Unknown';
+      const parts = bucketVal.split(',');
+      if (parts.length !== 2) return bucketVal;
+      const formatHr = (h) => {
+        const hr = parseInt(h, 10);
+        if (hr === 0) return '12am';
+        if (hr === 12) return '12pm';
+        return hr > 12 ? `${hr - 12}pm` : `${hr}am`;
+      };
+      return `${formatHr(parts[0])} - ${formatHr(parts[1])}`;
+    }
+
     function getTimeSlot(dateString) {
       if (!dateString) return 'Off-Peak';
       const d = new Date(dateString);
       const h = d.getHours();
+      
       if (h >= 9 && h < 11) return '9am - 11am';
       if (h >= 12 && h < 14) return '12pm - 2pm';
       if (h >= 16 && h < 18) return '4pm - 6pm';
       if (h >= 19 && h < 21) return '7pm - 9pm';
-      return 'Off-Peak';
+      
+      const formatHr = (hr) => {
+        if (hr === 0) return '12am';
+        if (hr === 12) return '12pm';
+        return hr > 12 ? `${hr - 12}pm` : `${hr}am`;
+      };
+      return `${formatHr(h)} - ${formatHr(h+1)}`;
     }
 
     const calls = new Map();
@@ -363,6 +408,10 @@
       autoFillNumber();
       document.getElementById('scheduleDateInput').value = '';
       document.getElementById('scheduleBucketInput').value = '';
+      document.getElementById('customBucketStart').value = '';
+      document.getElementById('customBucketEnd').value = '';
+      document.getElementById('customBucketDiv').classList.add('hidden');
+      document.getElementById('customBucketDiv').classList.remove('flex');
       document.getElementById('newCallModal').classList.remove('hidden');
     }
     
@@ -378,9 +427,19 @@
       const languageVal = document.getElementById('languageSelectInput').value;
       
       const dateVal = document.getElementById('scheduleDateInput').value;
-      const bucketVal = document.getElementById('scheduleBucketInput').value;
+      let bucketVal = document.getElementById('scheduleBucketInput').value;
       
       if (!input) return alert('Please ensure a target phone number is provided.');
+
+      // Process Custom Time Block
+      if (bucketVal === 'custom') {
+        const sh = parseInt(document.getElementById('customBucketStart').value, 10);
+        const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
+        if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
+            return alert('Please enter a valid custom time window (Start Hour must be less than End Hour).');
+        }
+        bucketVal = `${sh},${eh}`;
+      }
 
       let scheduleAtStr = null;
       if (dateVal && bucketVal) {
@@ -453,12 +512,12 @@
         const s = c.structuredOutputs || {};
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
         
-        const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
+        const timeSlot = c.status === 'scheduled' ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
         const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ').replace(/—/g, '-')}"`;
         
         const row = [
           esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(timeSlot), esc(s.useCase), esc(s.language), 
-          `="${c.customerNumber}"`, 
+          esc(c.customerNumber), 
           esc(s.waitTimes), esc(s.timeToAgent), durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
           esc(new Date(c.startedAt).toISOString()), esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
         ];
@@ -523,12 +582,10 @@
     function copyTranscript() {
       const c = calls.get(activeTranscriptCallId);
       if (c && c.transcript) {
-        // Strip out the system prompt logic before copying
         const cleanSegments = c.transcript.filter(s => s.role !== 'system');
         const brandName = c.structuredOutputs?.brand && c.structuredOutputs?.brand !== '—' && !c.structuredOutputs?.brand.toLowerCase().includes('unknown') ? c.structuredOutputs.brand : 'Call Center';
         
         const formattedText = cleanSegments.map(s => {
-          // Identify if it is our outbound AI Agent or the Call Center
           const isOurAI = s.role === 'assistant' || s.role === 'bot';
           const label = isOurAI ? 'AI AGENT' : brandName.toUpperCase();
           return `[${label}]: ${s.text}`;
@@ -541,7 +598,6 @@
     function renderTranscriptFeed(call) {
       const feed = document.getElementById('transcriptFeed');
       
-      // HIDE SYSTEM PROMPTS: Completely filter out the long initial instructions from rendering
       const segments = (call.transcript || []).filter(seg => seg.role !== 'system');
       document.getElementById('drawerStats').textContent = `${segments.length} message segment${segments.length === 1 ? '' : 's'}`;
 
@@ -553,10 +609,8 @@
       const brandName = call.structuredOutputs?.brand && call.structuredOutputs?.brand !== '—' && !call.structuredOutputs?.brand.toLowerCase().includes('unknown') ? call.structuredOutputs.brand : 'Call Center';
 
       feed.innerHTML = segments.map(seg => {
-        // Since this is outbound, our AI is the "assistant". The actual call center picking up is the "user"
         const isOurAI = seg.role === 'assistant' || seg.role === 'bot';
         
-        // UI Logic: Place our AI on the right (like a standard outgoing text), place the brand on the left
         return `
           <div class="flex flex-col ${isOurAI ? 'items-end ml-8' : 'items-start mr-8'} space-y-1">
             <span class="text-[10px] uppercase font-semibold ${isOurAI ? 'text-indigo-400' : 'text-slate-400'} tracking-wider px-1">${isOurAI ? 'AI Agent' : brandName}</span>
@@ -593,9 +647,7 @@
           const cDate = new Date(c.startedAt);
           const localDateStr = cDate.getFullYear() + '-' + String(cDate.getMonth()+1).padStart(2,'0') + '-' + String(cDate.getDate()).padStart(2,'0');
           
-          const timeSlot = c.status === 'scheduled' 
-            ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) 
-            : getTimeSlot(c.startedAt);
+          const timeSlot = c.status === 'scheduled' ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
 
           if (dateFilterVal && localDateStr !== dateFilterVal) matchesDate = false;
           if (bucketFilterVal && timeSlot !== bucketFilterVal) matchesBucket = false;
@@ -700,7 +752,7 @@
           const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
           const s = c.structuredOutputs || {};
           
-          const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
+          const timeSlot = c.status === 'scheduled' ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
           const brandDisplay = s.brand && s.brand !== '—' && !s.brand.toLowerCase().includes('unknown') ? s.brand : 'Manual Entry';
           const segmentDisplay = s.segment || '';
           
