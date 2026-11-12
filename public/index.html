@@ -59,7 +59,6 @@
 
     <main class="space-y-6">
       
-      <!-- NEW: Advanced Filtering Bar -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 backdrop-blur-sm">
         <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">Dashboard Filters</div>
         <div class="flex items-center gap-2.5 w-full sm:w-auto">
@@ -76,7 +75,6 @@
         </div>
       </div>
 
-      <!-- SUMMARY CARDS SPLIT BY BRAND + SEGMENT + BUCKET -->
       <div id="brandSummaryContainer" class="flex overflow-x-auto gap-4 pb-2 hidden snap-x"></div>
 
       <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
@@ -106,7 +104,6 @@
     </main>
   </div>
 
-  <!-- Advanced Initiate / Schedule Call Modal -->
   <div id="newCallModal" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeNewCallModal()"></div>
     <div class="fixed inset-0 flex items-center justify-center p-4">
@@ -188,7 +185,6 @@
     </div>
   </div>
 
-  <!-- Transcript Drawer -->
   <div id="transcriptDrawer" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity" onclick="closeTranscriptDrawer()"></div>
     <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
@@ -251,7 +247,7 @@
     updateClock();
 
     function parseToSec(str) {
-      if (!str || str === '—') return null;
+      if (!str || str === '—' || str === '-') return null;
       let s = String(str).toLowerCase().trim();
       if (s === 'none' || s === 'n/a' || s === 'identifying...' || s === 'measuring...') return null;
       if (/^\d+:\d+$/.test(s)) {
@@ -458,15 +454,20 @@
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
         
         const timeSlot = c.status === 'scheduled' ? (c.bucket === '9,11' ? '9am - 11am' : (c.bucket === '12,14' ? '12pm - 2pm' : (c.bucket === '16,18' ? '4pm - 6pm' : (c.bucket === '19,21' ? '7pm - 9pm' : 'Unknown')))) : getTimeSlot(c.startedAt);
-        const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+        
+        // Use hyphens instead of em-dashes to avoid legacy encoding artifacts in Excel
+        const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ').replace(/—/g, '-')}"`;
+        
         const row = [
-          esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(timeSlot), esc(s.useCase), esc(s.language), esc(c.customerNumber),
+          esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(timeSlot), esc(s.useCase), esc(s.language), 
+          esc(c.customerNumber), 
           esc(s.waitTimes), esc(s.timeToAgent), durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
           esc(new Date(c.startedAt).toISOString()), esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
         ];
         csvRows.push(row.join(","));
       });
-      const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+      
+      const blob = new Blob(['\uFEFF' + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `CompCalling_Export_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -563,7 +564,6 @@
       if (currentFilter === 'scheduled') filtered = scheduledCalls;
       if (currentFilter === 'past') filtered = pastCalls;
 
-      // --- APPLY NEW DASHBOARD FILTERS ---
       const dateFilterVal = document.getElementById('filterDateInput').value;
       const bucketFilterVal = document.getElementById('filterBucketInput').value;
 
@@ -586,7 +586,6 @@
         });
       }
 
-      // --- RENDER DYNAMIC SUMMARY CARDS ---
       const callsByBrand = new Map();
       filtered.forEach(c => {
         if (c.status === 'scheduled') return; 
