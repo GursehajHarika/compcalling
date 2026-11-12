@@ -17,7 +17,6 @@
   
   <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
     
-    <!-- Header -->
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-5 border-b border-slate-800/80 gap-4">
       <div>
         <div class="flex items-center gap-3">
@@ -33,8 +32,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Action Controls -->
       <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
         <div class="flex bg-slate-900 border border-slate-800/80 rounded-lg p-1 text-xs">
           <button onclick="setFilter('all')" id="btnFilterAll" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm">All (<span id="countAll">0</span>)</button>
@@ -61,22 +58,19 @@
     </header>
 
     <main class="space-y-6">
-      
-      <!-- TOP VIEW: Dynamic Brand Summary -->
       <div id="brandSummaryContainer" class="flex overflow-x-auto gap-4 pb-2 hidden snap-x"></div>
 
-      <!-- Table Container -->
       <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs min-w-[700px] lg:min-w-full">
             <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
               <tr>
                 <th class="py-3.5 px-4 font-semibold w-[10%]">Status</th>
-                <th class="py-3.5 px-4 font-semibold w-[12%]">Brand</th>
-                <th class="py-3.5 px-4 font-semibold w-[18%]">Call Target</th>
-                <th class="py-3.5 px-4 font-semibold w-[15%]">Reported Wait</th>
+                <th class="py-3.5 px-4 font-semibold w-[14%]">Target</th>
+                <th class="py-3.5 px-4 font-semibold w-[16%]">Configuration</th>
+                <th class="py-3.5 px-4 font-semibold w-[14%]">Reported Wait</th>
                 <th class="py-3.5 px-4 font-semibold w-[14%]">Time to Agent</th>
-                <th class="py-3.5 px-4 font-semibold w-[13%]">Time</th>
+                <th class="py-3.5 px-4 font-semibold w-[14%]">Time</th>
                 <th class="py-3.5 px-4 font-semibold text-right w-[18%]">Actions</th>
               </tr>
             </thead>
@@ -91,32 +85,84 @@
         </div>
       </div>
     </main>
-
   </div>
 
-  <!-- Initiate / Schedule Call Modal -->
+  <!-- Advanced Initiate / Schedule Call Modal -->
   <div id="newCallModal" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeNewCallModal()"></div>
     <div class="fixed inset-0 flex items-center justify-center p-4">
-      <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-sm overflow-hidden transform transition-all">
+      <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-md overflow-hidden transform transition-all">
         <div class="p-5 border-b border-slate-800">
-          <h3 class="text-lg leading-6 font-semibold text-white" id="modal-title">Initiate or Schedule Call</h3>
-          <p class="text-xs text-slate-400 mt-1">Enter target details. Leave time blank to dial now.</p>
+          <h3 class="text-lg leading-6 font-semibold text-white" id="modal-title">Configure Outbound Campaign</h3>
+          <p class="text-xs text-slate-400 mt-1">Select brand and use-case parameters for AI routing.</p>
         </div>
-        <div class="p-5 space-y-4">
-          <div>
-            <label for="targetNumberInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Target Phone Number</label>
-            <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+        <div class="p-5 space-y-5">
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Carrier Brand</label>
+              <select id="brandSelectInput" onchange="autoFillNumber()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <option value="Rogers">Rogers</option>
+                <option value="Bell">Bell</option>
+                <option value="Telus">Telus</option>
+                <option value="Fido">Fido</option>
+                <option value="Virgin Plus">Virgin Plus</option>
+                <option value="Koodo">Koodo</option>
+                <option value="Freedom Mobile">Freedom Mobile</option>
+                <option value="Other">Custom / Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Segment</label>
+              <select id="segmentSelectInput" onchange="autoFillNumber()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <option value="Consumer">Consumer</option>
+                <option value="Small Business">Small Business</option>
+              </select>
+            </div>
           </div>
+
           <div>
-            <label for="scheduleTimeInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Schedule Time (Optional)</label>
-            <input type="datetime-local" id="scheduleTimeInput" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" style="color-scheme: dark;">
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Dialing Target (Auto-filled)</label>
+            <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
           </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">AI Use Case</label>
+              <select id="useCaseSelectInput" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <option value="Billing">Billing (Account/Billing Dept)</option>
+                <option value="Sales">Sales (New Upgrades/Sales)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">AI Language</label>
+              <select id="languageSelectInput" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <option value="English">English</option>
+                <option value="French">Français</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="pt-2 border-t border-slate-800">
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Schedule Time Window (Optional)</label>
+            <div class="flex gap-3">
+              <input type="date" id="scheduleDateInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" style="color-scheme: dark;">
+              <select id="scheduleBucketInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <option value="">Select Window...</option>
+                <option value="9,11">9:00 AM - 11:00 AM</option>
+                <option value="12,14">12:00 PM - 2:00 PM</option>
+                <option value="16,18">4:00 PM - 6:00 PM</option>
+                <option value="19,21">7:00 PM - 9:00 PM</option>
+              </select>
+            </div>
+            <p class="text-[10px] text-amber-500/80 mt-2 font-medium">Smart conflict detection will block identical scheduled overlays.</p>
+          </div>
+
         </div>
         <div class="bg-slate-950/50 px-5 py-4 flex justify-end gap-3 border-t border-slate-800">
           <button type="button" onclick="closeNewCallModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Cancel</button>
           <button type="button" onclick="initiateNewCall()" id="initiateCallBtn" class="flex items-center justify-center min-w-[120px] px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-emerald-900/20 transition">
-            Dial / Schedule
+            Dispatch Campaign
           </button>
         </div>
       </div>
@@ -136,11 +182,10 @@
               </span>
               <h2 class="text-base font-semibold text-white tracking-tight" id="drawerTitle">Call Transcript</h2>
             </div>
-            <!-- INJECTED CALL ID DISPLAY -->
             <p class="text-[10px] text-slate-500 mt-1 font-mono tracking-wider" id="drawerCallIdDisplay">ID: None</p>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="copyTranscript()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg></button>
+            <button onclick="copyTranscript()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg></button>
             <button onclick="closeTranscriptDrawer()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
@@ -154,7 +199,29 @@
   </div>
 
   <script>
-    // --- Live Clock Engine ---
+    const BRAND_NUMBERS = {
+      "Rogers": { "Consumer": "+18887643771", "Small Business": "+18777421888" },
+      "Bell": { "Consumer": "+18663011942", "Small Business": "+18884662415" },
+      "Telus": { "Consumer": "+18665582273", "Small Business": "+18888112323" },
+      "Fido": { "Consumer": "+18884813436", "Small Business": "+18884813436" },
+      "Virgin Plus": { "Consumer": "+18889992321", "Small Business": "+18889992321" },
+      "Koodo": { "Consumer": "+18669956636", "Small Business": "+18669956636" },
+      "Freedom Mobile": { "Consumer": "+18779463184", "Small Business": "+18779463184" }
+    };
+
+    function autoFillNumber() {
+      const brand = document.getElementById('brandSelectInput').value;
+      const segment = document.getElementById('segmentSelectInput').value;
+      const targetInput = document.getElementById('targetNumberInput');
+      
+      if (brand === 'Other') {
+        targetInput.value = '';
+        targetInput.placeholder = "Enter manual phone number...";
+      } else if (BRAND_NUMBERS[brand] && BRAND_NUMBERS[brand][segment]) {
+        targetInput.value = BRAND_NUMBERS[brand][segment];
+      }
+    }
+
     function updateClock() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
@@ -246,18 +313,58 @@
     }
     connectWebSocket();
 
+    async function triggerSync() {
+      const btn = document.getElementById('syncBtn');
+      const icon = document.getElementById('syncIcon');
+      icon.classList.add('animate-spin');
+      btn.disabled = true;
+      try { await fetch('/api/sync-history'); } catch (e) {} 
+      finally { icon.classList.remove('animate-spin'); btn.disabled = false; }
+    }
+
     function openNewCallModal() {
-      document.getElementById('targetNumberInput').value = '';
-      document.getElementById('scheduleTimeInput').value = '';
+      document.getElementById('brandSelectInput').value = 'Rogers';
+      document.getElementById('segmentSelectInput').value = 'Consumer';
+      document.getElementById('useCaseSelectInput').value = 'Billing';
+      document.getElementById('languageSelectInput').value = 'English';
+      autoFillNumber();
+      document.getElementById('scheduleDateInput').value = '';
+      document.getElementById('scheduleBucketInput').value = '';
       document.getElementById('newCallModal').classList.remove('hidden');
     }
+    
     function closeNewCallModal() {
       document.getElementById('newCallModal').classList.add('hidden');
     }
+    
     async function initiateNewCall() {
       const input = document.getElementById('targetNumberInput').value.trim();
-      const scheduleVal = document.getElementById('scheduleTimeInput').value;
-      if (!input) return alert('Please enter a target phone number.');
+      const brandVal = document.getElementById('brandSelectInput').value;
+      const segmentVal = document.getElementById('segmentSelectInput').value;
+      const useCaseVal = document.getElementById('useCaseSelectInput').value;
+      const languageVal = document.getElementById('languageSelectInput').value;
+      
+      const dateVal = document.getElementById('scheduleDateInput').value;
+      const bucketVal = document.getElementById('scheduleBucketInput').value;
+      
+      if (!input) return alert('Please ensure a target phone number is provided.');
+
+      let scheduleAtStr = null;
+      if (dateVal && bucketVal) {
+        const [startHour, endHour] = bucketVal.split(',').map(Number);
+        const [year, month, day] = dateVal.split('-').map(Number);
+        const scheduledDate = new Date(year, month - 1, day);
+        const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
+        const randomMinute = Math.floor(Math.random() * 60);
+        scheduledDate.setHours(randomHour, randomMinute, 0, 0);
+
+        if (scheduledDate.getTime() < Date.now()) {
+          return alert('The selected time window has already passed for today. Please pick a future time or date.');
+        }
+        scheduleAtStr = scheduledDate.toISOString();
+      } else if (dateVal || bucketVal) {
+        return alert('Please select both a date and a time window, or leave both blank to dial immediately.');
+      }
 
       const btn = document.getElementById('initiateCallBtn');
       const originalText = btn.innerHTML;
@@ -265,8 +372,17 @@
       btn.disabled = true;
 
       try {
-        const payload = { targetNumber: input };
-        if (scheduleVal) payload.scheduleAt = new Date(scheduleVal).toISOString();
+        const payload = { 
+          targetNumber: input, 
+          brand: brandVal,
+          segment: segmentVal,
+          useCase: useCaseVal,
+          language: languageVal
+        };
+        if (scheduleAtStr) {
+          payload.scheduleAt = scheduleAtStr;
+          payload.scheduleBucket = bucketVal;
+        }
 
         const res = await fetch('/api/calls/start', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -274,7 +390,7 @@
 
         if (!res.ok) {
           const err = await res.json();
-          alert(`Failed to execute: ${err.error || err.message}`);
+          alert(`Schedule Alert: ${err.error || err.message}`);
         } else {
           const data = await res.json();
           closeNewCallModal();
@@ -296,7 +412,7 @@
 
     function exportCSV() {
       if (calls.size === 0) return alert('No data available to export.');
-      const headers = ["Call ID", "Status", "Brand", "Target Number", "Reported Wait", "Time to Agent", "Duration (Sec)", "System Detected", "HOOPs", "Customer Experience", "IVR Options", "Start Time", "End Time"];
+      const headers = ["Call ID", "Status", "Brand", "Segment", "Use Case", "Language", "Target Number", "Reported Wait", "Time to Agent", "Duration (Sec)", "System Detected", "HOOPs", "Customer Experience", "IVR Options", "Start Time", "End Time"];
       const csvRows = [headers.join(",")];
       const callList = Array.from(calls.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
 
@@ -305,9 +421,8 @@
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
         const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
         const row = [
-          esc(c.id), esc(c.status), esc(s.brand !== '—' ? s.brand : ''), esc(c.customerNumber),
-          esc(s.waitTimes !== '—' ? s.waitTimes : ''), esc(s.timeToAgent !== '—' ? s.timeToAgent : ''),
-          durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
+          esc(c.id), esc(c.status), esc(s.brand), esc(s.segment), esc(s.useCase), esc(s.language), esc(c.customerNumber),
+          esc(s.waitTimes), esc(s.timeToAgent), durationSec, esc(s.systemUsed), esc(s.hoops), esc(s.cxToAgent), esc(s.ivrOptions),
           esc(new Date(c.startedAt).toISOString()), esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
         ];
         csvRows.push(row.join(","));
@@ -327,8 +442,7 @@
       terminatingCalls.add(callId);
       render();
       try {
-        const res = await fetch(`/api/calls/${callId}/end`, { method: 'POST' });
-        if (!res.ok) alert('Failed to dispatch hang up command');
+        await fetch(`/api/calls/${callId}/end`, { method: 'POST' });
       } catch (e) { alert('Network error'); }
       finally { terminatingCalls.delete(callId); render(); }
     }
@@ -336,18 +450,14 @@
     async function cancelScheduledCall(callId, event) {
       event.stopPropagation();
       if (!confirm('Cancel this scheduled automated dial?')) return;
-      try {
-        await fetch(`/api/calls/schedule/${callId}`, { method: 'DELETE' });
-      } catch (e) { alert('Failed to cancel schedule'); }
+      try { await fetch(`/api/calls/schedule/${callId}`, { method: 'DELETE' }); } catch (e) { }
     }
 
     function setFilter(filter) {
       currentFilter = filter;
       ['all', 'live', 'scheduled', 'past'].forEach(f => {
         const btn = document.getElementById('btnFilter' + f.charAt(0).toUpperCase() + f.slice(1));
-        btn.className = f === filter 
-          ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm'
-          : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+        btn.className = f === filter ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm' : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
       });
       render();
     }
@@ -449,10 +559,7 @@
           const avgCallTime = formatSec(totalCallTime / brandCalls.length);
           const totalCallsCount = brandCalls.length;
           
-          const statusIndicator = isLive 
-            ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
-            : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
-
+          const statusIndicator = isLive ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>` : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
           const tickMsg = (latestCall.transcript && latestCall.transcript.length > 0) ? latestCall.transcript[latestCall.transcript.length - 1] : null;
           
           return `
@@ -494,7 +601,6 @@
           const isExpanded = expandedRows.has(c.id);
           const isLive = ['in-progress', 'ringing', 'queued'].includes(c.status);
           const isSched = c.status === 'scheduled';
-          const isTerminating = terminatingCalls.has(c.id);
           
           let timeDisplay;
           if (isSched) {
@@ -507,13 +613,18 @@
 
           const badgeStyle = isLive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
           const s = c.structuredOutputs || {};
+          
+          // Display the newly parsed parameters
+          const brandDisplay = s.brand && s.brand !== '—' ? s.brand : 'Manual';
+          const segmentDisplay = s.segment || '';
+          const configDisplay = s.useCase ? `<span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">${s.useCase} (${s.language})</span>` : '<span class="text-slate-600">—</span>';
 
           const mainRow = document.createElement('tr');
           mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
           mainRow.innerHTML = `
             <td class="py-3.5 px-4"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStyle}">${isLive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>' : ''}${c.status}</span></td>
-            <td class="py-3.5 px-4 font-sans">${s.brand && s.brand !== '—' ? `<span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">${s.brand}</span>` : '<span class="text-slate-600 font-sans">—</span>'}</td>
-            <td class="py-3.5 px-4 text-slate-200 font-sans font-medium">${c.customerNumber}</td>
+            <td class="py-3.5 px-4 font-sans"><span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">${brandDisplay} ${segmentDisplay}</span></td>
+            <td class="py-3.5 px-4 font-sans">${configDisplay}</td>
             <td class="py-3.5 px-4 text-cyan-400 font-semibold font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
             <td class="py-3.5 px-4 text-amber-300 font-medium font-sans">${s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>'}</td>
             <td class="py-3.5 px-4 text-slate-400 text-[11px]">${timeDisplay}</td>
@@ -532,7 +643,7 @@
           if (isExpanded && !isSched) {
             const detailRow = document.createElement('tr');
             detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
-            detailRow.innerHTML = `<td colspan="7" class="p-4 sm:p-5 font-sans"><div class="space-y-4"><div class="grid grid-cols-2 md:grid-cols-4 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Brand</span><div class="text-sm font-semibold text-indigo-300 mt-1">${s.brand || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span><div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span><div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span><div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p></div></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span><p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p></div></div></td>`;
+            detailRow.innerHTML = `<td colspan="7" class="p-4 sm:p-5 font-sans"><div class="space-y-4"><div class="grid grid-cols-2 md:grid-cols-4 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Target Number</span><div class="text-sm font-mono text-slate-300 mt-1">${c.customerNumber}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span><div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span><div class="text-sm font-semibold text-amber-300 mt-1">${s.timeToAgent || '—'}</div></div><div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span><div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span><p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p></div></div><div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg"><span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span><p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p></div></div></td>`;
             tableBody.appendChild(detailRow);
           }
         });

@@ -12,56 +12,51 @@ const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT || 8080;
 const VAPI_SECRET = (process.env.VAPI_SECRET_TOKEN || '').trim();
+
+// Default Fallback
 const VAPI_ASSISTANT_ID = (process.env.VAPI_ASSISTANT_ID || '944f6021-5305-4895-ad7d-8782fddfcc10').trim();
 const VAPI_PHONE_NUMBER_ID = (process.env.VAPI_PHONE_NUMBER_ID || '8ead1121-e11a-4bd0-b3ba-e1feaacdb242').trim();
+
+// Multi-Agent Routing IDs (Configurable in Railway Variables later)
+const AGENTS = {
+  'billing_english': process.env.VAPI_BILLING_EN_ID || VAPI_ASSISTANT_ID,
+  'billing_french': process.env.VAPI_BILLING_FR_ID || VAPI_ASSISTANT_ID,
+  'sales_english': process.env.VAPI_SALES_EN_ID || VAPI_ASSISTANT_ID,
+  'sales_french': process.env.VAPI_SALES_FR_ID || VAPI_ASSISTANT_ID,
+};
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ========================================================
-// PERSISTENT CACHE (RAILWAY VOLUME)
-// ========================================================
+// Persistent Cache
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
-  try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) { console.error('Failed to create data dir', e); }
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) {}
 }
 const dbPath = path.join(dataDir, 'calls.json');
-
 const callStore = new Map();
 
 function loadDB() {
   try {
     if (fs.existsSync(dbPath)) {
       const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-      for (const [key, value] of Object.entries(data)) {
-        callStore.set(key, value);
-      }
-      console.log(`[Cache] Loaded ${callStore.size} calls from persistent volume.`);
+      for (const [key, value] of Object.entries(data)) callStore.set(key, value);
     }
-  } catch (e) { console.error("[Cache] Failed to load DB:", e.message); }
+  } catch (e) {}
 }
-
 function saveDB() {
-  try {
-    fs.writeFileSync(dbPath, JSON.stringify(Object.fromEntries(callStore), null, 2), 'utf8');
-  } catch (e) { console.error("[Cache] Failed to save DB:", e.message); }
+  try { fs.writeFileSync(dbPath, JSON.stringify(Object.fromEntries(callStore), null, 2), 'utf8'); } catch (e) {}
 }
-
-// Load memory on startup
 loadDB();
 
-// ========================================================
-// UTILITIES
-// ========================================================
 function broadcast(event, data) {
   const payload = JSON.stringify({ event, data });
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) client.send(payload);
-  });
+  wss.clients.forEach((c) => { if (c.readyState === 1) c.send(payload); });
 }
 
+// Extraction Utilities
 function extractStructuredOutputs(data) {
   if (!data || typeof data !== 'object') return {};
   const normalized = {};
@@ -74,13 +69,11 @@ function extractStructuredOutputs(data) {
     'cxToAgent': ['customer experience to agent', 'cx to agent'],
     'waitTimes': ['wait times', 'wait time']
   };
-
   for (const [key, val] of Object.entries(data)) {
     let fieldName = key;
     let fieldValue = val;
     if (val && typeof val === 'object' && val.name && val.result !== undefined) {
-      fieldName = val.name;
-      fieldValue = val.result;
+      fieldName = val.name; fieldValue = val.result;
     }
     const cleanName = String(fieldName).trim().toLowerCase();
     for (const [targetKey, synonyms] of Object.entries(fieldMap)) {
@@ -98,21 +91,15 @@ function findStructuredData(obj) {
     obj.analysis?.structuredData, obj.call?.analysis?.structuredData,
     obj.structuredOutputs, obj.structuredData
   ];
-  for (const c of candidates) {
-    if (c && typeof c === 'object' && Object.keys(c).length > 0) return c;
-  }
+  for (const c of candidates) { if (c && typeof c === 'object' && Object.keys(c).length > 0) return c; }
   return null;
 }
 
 function parseHistoricalTranscript(call) {
   if (Array.isArray(call.messages)) {
-    return call.messages
-      .filter(m => m.message || m.content)
-      .map(m => ({
-        role: m.role || 'assistant',
-        text: m.message || m.content,
-        time: m.time || m.timestamp || null
-      }));
+    return call.messages.filter(m => m.message || m.content).map(m => ({
+      role: m.role || 'assistant', text: m.message || m.content, time: m.time || m.timestamp || null
+    }));
   }
   if (typeof call.transcript === 'string' && call.transcript.trim()) {
     return [{ role: 'system', text: call.transcript, time: null }];
@@ -120,15 +107,15 @@ function parseHistoricalTranscript(call) {
   return [];
 }
 
-async function makeVapiOutboundCall(targetNumber) {
+async function makeVapiOutboundCall(targetNumber, useCase = 'billing', language = 'english') {
+  const routingKey = `${useCase}_${language}`.toLowerCase();
+  const selectedAssistantId = AGENTS[routingKey] || VAPI_ASSISTANT_ID;
+
   const response = await fetch('https://api.vapi.ai/call', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${VAPI_SECRET}`,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Authorization': `Bearer ${VAPI_SECRET}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      assistantId: VAPI_ASSISTANT_ID,
+      assistantId: selectedAssistantId,
       phoneNumberId: VAPI_PHONE_NUMBER_ID,
       customer: { number: targetNumber }
     })
@@ -145,12 +132,16 @@ setInterval(() => {
     if (call.status === 'scheduled') {
       const executeTime = new Date(call.startedAt).getTime();
       if (now >= executeTime) {
-        console.log(`[Scheduler] Auto-dialing scheduled call to ${call.customerNumber}`);
+        console.log(`[Scheduler] Auto-dialing ${call.structuredOutputs.brand} (${call.structuredOutputs.useCase}/${call.structuredOutputs.language})`);
+        const useCase = call.structuredOutputs.useCase;
+        const language = call.structuredOutputs.language;
+        
         callStore.delete(id);
         dbChanged = true;
         broadcast('CALL_DELETED', { id });
-        makeVapiOutboundCall(call.customerNumber).catch(err => {
-          console.error(`[Scheduler Error] Failed to auto-dial ${call.customerNumber}:`, err.message);
+        
+        makeVapiOutboundCall(call.customerNumber, useCase, language).catch(err => {
+          console.error(`[Scheduler Error] Failed to dial:`, err.message);
         });
       }
     }
@@ -170,8 +161,6 @@ async function syncPastCallsFromVapi() {
     if (Array.isArray(pastCalls)) {
       pastCalls.forEach((call) => {
         const parsed = extractStructuredOutputs(findStructuredData(call) || {});
-        const transcript = parseHistoricalTranscript(call);
-
         const record = {
           id: call.id,
           status: call.status || 'ended',
@@ -181,12 +170,13 @@ async function syncPastCallsFromVapi() {
           endedAt: call.endedAt,
           updatedAt: call.updatedAt || call.createdAt,
           endedReason: call.endedReason || 'completed',
-          transcript: transcript,
+          transcript: parseHistoricalTranscript(call),
           structuredOutputs: {
             brand: parsed.brand || '—', systemUsed: parsed.systemUsed || '—',
             hoops: parsed.hoops || '—', ivrOptions: parsed.ivrOptions || '—',
             timeToAgent: parsed.timeToAgent || '—', cxToAgent: parsed.cxToAgent || '—',
-            waitTimes: parsed.waitTimes || '—'
+            waitTimes: parsed.waitTimes || '—',
+            useCase: parsed.useCase || 'Unknown', language: parsed.language || 'Unknown', segment: parsed.segment || 'Unknown'
           }
         };
         if (!callStore.has(call.id) || callStore.get(call.id).status === 'ended') {
@@ -198,12 +188,9 @@ async function syncPastCallsFromVapi() {
     }
   } catch (err) {}
 }
-
 syncPastCallsFromVapi();
 
-// ========================================================
-// API ENDPOINTS
-// ========================================================
+// API Endpoints
 app.get('/api/sync-history', async (req, res) => {
   await syncPastCallsFromVapi();
   const sorted = Array.from(callStore.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
@@ -212,19 +199,38 @@ app.get('/api/sync-history', async (req, res) => {
 });
 
 app.post('/api/calls/start', async (req, res) => {
-  const { targetNumber, scheduleAt } = req.body;
+  const { targetNumber, scheduleAt, scheduleBucket, brand, segment, useCase, language } = req.body;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Server missing VAPI_SECRET_TOKEN' });
   if (!targetNumber) return res.status(400).json({ error: 'Target phone number required' });
 
   try {
-    if (scheduleAt) {
+    if (scheduleAt && scheduleBucket) {
       const scheduledTime = new Date(scheduleAt);
       if (scheduledTime.getTime() > Date.now()) {
+        const reqDateStr = scheduledTime.toISOString().split('T')[0];
+
+        // SMART CONFLICT DETECTION
+        for (const [id, call] of callStore.entries()) {
+          if (call.status === 'scheduled') {
+            const existingDateStr = new Date(call.startedAt).toISOString().split('T')[0];
+            if (
+              existingDateStr === reqDateStr &&
+              call.bucket === scheduleBucket &&
+              call.structuredOutputs.brand === brand &&
+              call.structuredOutputs.segment === segment &&
+              call.structuredOutputs.useCase === useCase &&
+              call.structuredOutputs.language === language
+            ) {
+              return res.status(409).json({ error: `Conflict: A ${useCase} (${language}) call to ${brand} ${segment} is already scheduled in this time block on ${reqDateStr}.` });
+            }
+          }
+        }
+
         const fakeId = 'sched_' + Date.now();
         const scheduledRecord = {
-          id: fakeId, status: 'scheduled', customerNumber: targetNumber,
+          id: fakeId, status: 'scheduled', customerNumber: targetNumber, bucket: scheduleBucket,
           startedAt: scheduledTime.toISOString(), updatedAt: new Date().toISOString(),
-          structuredOutputs: { brand: 'Scheduled Automated Dial', systemUsed: '—', hoops: '—', ivrOptions: '—', timeToAgent: '—', cxToAgent: '—', waitTimes: '—' }
+          structuredOutputs: { brand: brand || 'Manual Dial', segment: segment, useCase: useCase, language: language, systemUsed: '—', hoops: '—', ivrOptions: '—', timeToAgent: '—', cxToAgent: '—', waitTimes: '—' }
         };
         callStore.set(fakeId, scheduledRecord);
         saveDB();
@@ -232,7 +238,9 @@ app.post('/api/calls/start', async (req, res) => {
         return res.json({ success: true, scheduled: true, call: scheduledRecord });
       }
     }
-    const callData = await makeVapiOutboundCall(targetNumber);
+    
+    // Live execution uses the specific routing agent
+    const callData = await makeVapiOutboundCall(targetNumber, useCase, language);
     return res.json({ success: true, scheduled: false, call: callData });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -253,43 +261,16 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
 app.post('/api/calls/:id/end', async (req, res) => {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
-
-  console.log(`[Hangup] Dispatching termination for call: ${id}`);
-
   try {
-    // 1. Force terminate the active session directly through Vapi's API
-    await fetch(`https://api.vapi.ai/call/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${VAPI_SECRET}` }
-    });
-
-    // 2. Fallback control ping using safely cached URL
-    let controlUrl = callStore.get(id)?.controlUrl;
-    if (controlUrl) {
-      try {
-        await fetch(controlUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'control', control: 'end-call' })
-        });
-      } catch (e) {}
-    }
-
+    await fetch(`https://api.vapi.ai/call/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${VAPI_SECRET}` } });
     let c = callStore.get(id);
     if (!c) c = { id, customerNumber: 'Unknown', structuredOutputs: {} };
-    
-    c.status = 'ended';
-    c.endedReason = 'manually-ended';
-    c.endedAt = new Date().toISOString();
-    
+    c.status = 'ended'; c.endedReason = 'manually-ended'; c.endedAt = new Date().toISOString();
     callStore.set(id, c);
     saveDB();
-    
     broadcast('CALL_UPDATED', c);
-
-    return res.json({ success: true, message: 'Call terminated successfully.' });
+    return res.json({ success: true });
   } catch (err) {
-    console.error(`[Hangup Fatal]`, err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -301,7 +282,6 @@ app.get('/health', (req, res) => res.status(200).send('OK'));
 app.post('/webhook/vapi', (req, res) => {
   const { message } = req.body;
   if (!message || !message.call) return res.status(200).json({ received: true });
-
   const call = message.call;
   const callId = call.id;
   const now = new Date().toISOString();
@@ -311,11 +291,8 @@ app.post('/webhook/vapi', (req, res) => {
     customerNumber: call.customer?.number || 'Outbound Call',
     startedAt: call.startedAt || now, updatedAt: now,
     transcript: [],
-    structuredOutputs: {
-      brand: 'Identifying...', systemUsed: 'Scanning...', hoops: 'Scanning...', ivrOptions: 'Listening...', timeToAgent: 'Pending...', cxToAgent: 'Pending...', waitTimes: 'Measuring...'
-    }
+    structuredOutputs: { brand: 'Identifying...', systemUsed: 'Scanning...', hoops: 'Scanning...', ivrOptions: 'Listening...', timeToAgent: 'Pending...', cxToAgent: 'Pending...', waitTimes: 'Measuring...' }
   };
-
   const liveControlUrl = call.monitor?.controlUrl || message.monitor?.controlUrl || call.controlUrl;
   if (liveControlUrl) record.controlUrl = liveControlUrl;
 
@@ -326,19 +303,13 @@ app.post('/webhook/vapi', (req, res) => {
       const segment = { role: message.role || (message.transcriptType === 'final' ? 'user' : 'assistant'), text: text.trim(), time: now, isFinal: message.transcriptType === 'final' };
       if (record.transcript.length > 0 && !record.transcript[record.transcript.length - 1].isFinal && !segment.isFinal) {
         record.transcript[record.transcript.length - 1] = segment;
-      } else {
-        record.transcript.push(segment);
-      }
+      } else { record.transcript.push(segment); }
       broadcast('TRANSCRIPT_UPDATE', { callId, segment });
     }
   }
   
   if (message.type === 'conversation-update' && Array.isArray(message.messages)) {
-    record.transcript = message.messages.map(m => ({
-      role: m.role || 'assistant',
-      text: m.message || m.content || '',
-      time: m.time || now
-    }));
+    record.transcript = message.messages.map(m => ({ role: m.role || 'assistant', text: m.message || m.content || '', time: m.time || now }));
   }
 
   const rawStructured = findStructuredData(message) || findStructuredData(call);
@@ -350,23 +321,16 @@ app.post('/webhook/vapi', (req, res) => {
     record.status = 'ended'; 
     record.endedReason = message.endedReason || 'completed';
     if (call.endedAt) record.endedAt = call.endedAt;
-    
     if (Array.isArray(message.artifact?.messages)) {
-      record.transcript = message.artifact.messages.map(m => ({
-        role: m.role || 'assistant',
-        text: m.message || m.content || '',
-        time: m.time || now
-      }));
+      record.transcript = message.artifact.messages.map(m => ({ role: m.role || 'assistant', text: m.message || m.content || '', time: m.time || now }));
     } else if (typeof message.artifact?.transcript === 'string') {
       record.transcript = [{ role: 'system', text: message.artifact.transcript, time: now }];
     }
   }
-
   record.updatedAt = now;
   callStore.set(callId, record);
-  saveDB(); // Instantly write webhook changes to persistent storage
+  saveDB();
   broadcast('CALL_UPDATED', record);
-
   return res.status(200).json({ success: true });
 });
 
@@ -378,7 +342,4 @@ wss.on('connection', (ws) => {
 process.on('uncaughtException', (err) => console.error('[Exception]:', err));
 process.on('unhandledRejection', (reason) => console.error('[Rejection]:', reason));
 process.on('SIGTERM', () => setTimeout(() => server.close(() => process.exit(0)), 5000));
-
-server.listen(PORT, () => {
-  console.log(`Comp Calling successfully bound on port ${PORT} with persistent volume caching enabled`);
-});
+server.listen(PORT, () => console.log(`Comp Calling listening on port ${PORT}`));
