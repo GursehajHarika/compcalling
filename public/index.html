@@ -45,7 +45,11 @@
         </button>
         <button onclick="exportCSV()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden sm:inline">Export</span>
+          <span class="hidden sm:inline">Export CSV</span>
+        </button>
+        <button onclick="exportWFMGrid()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600/80 hover:bg-indigo-600 text-slate-200 border border-indigo-500/30 transition shadow-lg shadow-indigo-900/10">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span class="hidden sm:inline">Export WFM Grid</span>
         </button>
         <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
@@ -172,7 +176,7 @@
               </select>
             </div>
             
-            <!-- NEW: Custom Time Inputs -->
+            <!-- Custom Time Inputs -->
             <div id="customBucketDiv" class="hidden gap-3 mt-3 p-3 bg-slate-900 border border-slate-700/60 rounded-lg items-center">
                 <div class="flex-1">
                     <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">Start Hr (0-23)</label>
@@ -277,16 +281,16 @@
       if (s === 'none' || s === 'n/a' || s === 'identifying...' || s === 'measuring...') return null;
       if (/^\d+:\d+$/.test(s)) {
         const parts = s.split(':');
-        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        return parseInt(parts[0], 10) * 60 + parseInt(parts, 10);
       }
       let secs = 0; let found = false;
       const minMatch = s.match(/(\d+)\s*(m|min)/);
-      if (minMatch) { secs += parseInt(minMatch[1], 10) * 60; found = true; }
+      if (minMatch) { secs += parseInt(minMatch, 10) * 60; found = true; }
       const secMatch = s.match(/(\d+)\s*(s|sec)/);
-      if (secMatch) { secs += parseInt(secMatch[1], 10); found = true; }
+      if (secMatch) { secs += parseInt(secMatch, 10); found = true; }
       if (!found) {
         const numMatch = s.match(/^(\d+)$/);
-        if (numMatch) return parseInt(numMatch[1], 10);
+        if (numMatch) return parseInt(numMatch, 10);
       }
       return found ? secs : null;
     }
@@ -308,7 +312,7 @@
         if (hr === 12) return '12pm';
         return hr > 12 ? `${hr - 12}pm` : `${hr}am`;
       };
-      return `${formatHr(parts[0])} - ${formatHr(parts[1])}`;
+      return `${formatHr(parts[0])} - ${formatHr(parts)}`;
     }
 
     function getTimeSlot(dateString) {
@@ -431,7 +435,6 @@
       
       if (!input) return alert('Please ensure a target phone number is provided.');
 
-      // Process Custom Time Block
       if (bucketVal === 'custom') {
         const sh = parseInt(document.getElementById('customBucketStart').value, 10);
         const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
@@ -511,7 +514,6 @@
       callList.forEach(c => {
         const s = c.structuredOutputs || {};
         const durationSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
-        
         const timeSlot = c.status === 'scheduled' ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
         const esc = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\n/g, ' ').replace(/—/g, '-')}"`;
         
@@ -528,6 +530,95 @@
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `CompCalling_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportWFMGrid() {
+      if (calls.size === 0) return alert('No data available to export.');
+      
+      const callList = Array.from(calls.values()).filter(c => c.status !== 'scheduled');
+      if (callList.length === 0) return alert('No historical calls found to construct WFM Grid.');
+
+      const grid = {};
+      const brands = ["Bell", "Rogers", "Telus", "Videotron", "Virgin", "Fido", "Koodo"];
+      const languages = ["English", "French"];
+      
+      callList.forEach(c => {
+        const s = c.structuredOutputs || {};
+        const dateObj = new Date(c.startedAt);
+        const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        
+        const segment = s.segment || 'Consumer';
+        const useCase = s.useCase || 'Sales';
+        const brandRaw = s.brand || 'Other';
+        const lang = s.language || 'English';
+        
+        let mappedBrand = "Other";
+        const lowerBrand = brandRaw.toLowerCase();
+        if (lowerBrand.includes("bell")) mappedBrand = "Bell";
+        else if (lowerBrand.includes("rogers")) mappedBrand = "Rogers";
+        else if (lowerBrand.includes("telus")) mappedBrand = "Telus";
+        else if (lowerBrand.includes("videotron")) mappedBrand = "Videotron";
+        else if (lowerBrand.includes("virgin")) mappedBrand = "Virgin";
+        else if (lowerBrand.includes("fido")) mappedBrand = "Fido";
+        else if (lowerBrand.includes("koodo")) mappedBrand = "Koodo";
+        
+        if (mappedBrand === "Other") return;
+        
+        const key = `${segment} - ${useCase}`;
+        if (!grid[key]) grid[key] = {};
+        if (!grid[key][dateStr]) grid[key][dateStr] = {};
+        
+        const cellKey = `${mappedBrand}_${lang}`;
+        const tSec = parseToSec(s.timeToAgent);
+        if (tSec !== null) {
+          if (!grid[key][dateStr][cellKey]) grid[key][dateStr][cellKey] = [];
+          grid[key][dateStr][cellKey].push(tSec);
+        }
+      });
+      
+      const csvRows = [];
+      
+      Object.keys(grid).forEach(sectionTitle => {
+        csvRows.push(`=== ${sectionTitle} ===`);
+        
+        const header = ["DoW", "Date"];
+        brands.forEach(b => {
+          header.push(`${b} EN`);
+          header.push(`${b} FR`);
+        });
+        csvRows.push(header.join(","));
+        
+        const dates = Object.keys(grid[sectionTitle]).sort((a, b) => new Date(a) - new Date(b));
+        dates.forEach(dateStr => {
+          const parts = dateStr.split(", ");
+          const dow = parts[0] || "";
+          const dateVal = parts || dateStr;
+          
+          const row = [dow, dateVal];
+          brands.forEach(b => {
+            languages.forEach(l => {
+              const cellKey = `${b}_${l}`;
+              const vals = grid[sectionTitle][dateStr][cellKey];
+              if (vals && vals.length > 0) {
+                const avg = Math.round(vals.reduce((sum, v) => sum + v, 0) / vals.length);
+                row.push(avg);
+              } else {
+                row.push("-");
+              }
+            });
+          });
+          csvRows.push(row.join(","));
+        });
+        csvRows.push(""); 
+      });
+      
+      const blob = new Blob(['\uFEFF' + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `CompCalling_WFM_Grid_${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
