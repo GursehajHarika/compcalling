@@ -287,23 +287,53 @@
             <div class="flex gap-3">
               <input type="date" id="scheduleDateInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" style="color-scheme: dark;">
               <select id="scheduleBucketInput" onchange="handleBucketChange()" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-                <option value="">Select Window...</option>
+                <option value="">Dial Immediately</option>
                 <option value="9,11">9:00 AM - 11:00 AM</option>
                 <option value="12,14">12:00 PM - 2:00 PM</option>
                 <option value="16,18">4:00 PM - 6:00 PM</option>
                 <option value="19,21">7:00 PM - 9:00 PM</option>
-                <option value="custom">Custom Window...</option>
+                <option value="custom">Custom Schedule...</option>
               </select>
             </div>
             
-            <div id="customBucketDiv" class="hidden gap-3 mt-3 p-3 bg-slate-900 border border-slate-700/60 rounded-lg items-center">
-              <div class="flex-1">
-                <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">Start Hr (0-23)</label>
-                <input type="number" id="customBucketStart" min="0" max="23" placeholder="e.g. 14" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <!-- Updated Custom Call Schedule Box (Minutes Countdown or Exact HH:MM Window) -->
+            <div id="customBucketDiv" class="hidden flex-col gap-3 mt-3 p-3.5 bg-slate-950/90 border border-slate-700/80 rounded-lg">
+              <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-800 text-[11px] font-medium">
+                <button type="button" id="customModeMinutesBtn" onclick="setCustomScheduleMode('minutes')" class="flex-1 py-1.5 rounded-md bg-indigo-600 text-white transition">
+                  Send in X Minutes
+                </button>
+                <button type="button" id="customModeWindowBtn" onclick="setCustomScheduleMode('window')" class="flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition">
+                  Exact Time / Window
+                </button>
               </div>
-              <div class="flex-1">
-                <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">End Hr (0-24)</label>
-                <input type="number" id="customBucketEnd" min="0" max="24" placeholder="e.g. 16" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+
+              <!-- Mode 1: Send in X Minutes -->
+              <div id="customMinutesPane" class="space-y-2.5">
+                <div class="flex items-center justify-between gap-3">
+                  <label class="text-[11px] text-slate-300 font-medium">Dispatch call in (minutes):</label>
+                  <input type="number" id="customMinutesOffset" min="1" max="1440" value="5" placeholder="e.g. 5" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10px] text-slate-500 uppercase tracking-wider mr-1">Quick set:</span>
+                  <button type="button" onclick="setQuickMinutes(2)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+2m</button>
+                  <button type="button" onclick="setQuickMinutes(5)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+5m</button>
+                  <button type="button" onclick="setQuickMinutes(10)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+10m</button>
+                  <button type="button" onclick="setQuickMinutes(15)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+15m</button>
+                  <button type="button" onclick="setQuickMinutes(30)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+30m</button>
+                  <button type="button" onclick="setQuickMinutes(45)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono border border-slate-700 transition">+45m</button>
+                </div>
+              </div>
+
+              <!-- Mode 2: Exact Time / Minute Window -->
+              <div id="customWindowPane" class="hidden grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">Start Time</label>
+                  <input type="time" id="customTimeStart" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" style="color-scheme: dark;">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1">End Time (Optional)</label>
+                  <input type="time" id="customTimeEnd" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" style="color-scheme: dark;">
+                </div>
               </div>
             </div>
 
@@ -375,6 +405,7 @@
     let currentFilter = 'all';
     let currentTimeframe = 'week';
     let activeTranscriptCallId = null;
+    let customScheduleMode = 'minutes'; // 'minutes' | 'window'
 
     function updateClock() {
       const now = new Date();
@@ -476,12 +507,10 @@
       if (!s || ['—', '-', 'none', 'n/a', 'pending...', 'identifying...', 'measuring...', 'scanning...', 'listening...', 'unknown', 'null', 'undefined'].includes(s)) {
         return null;
       }
-      // hh:mm:ss
       const hms = s.match(/^(\d+):(\d+):(\d+)$/);
       if (hms) {
         return parseInt(hms[1], 10) * 3600 + parseInt(hms[2], 10) * 60 + parseInt(hms[3], 10);
       }
-      // mm:ss
       const ms = s.match(/^(\d+):(\d+)$/);
       if (ms) {
         return parseInt(ms[1], 10) * 60 + parseInt(ms[2], 10);
@@ -546,7 +575,9 @@
     function formatTimeBucketString(bucketVal) {
       if (!bucketVal) return 'Unknown';
       const parts = String(bucketVal).split(',');
-      if (parts.length !== 2) return bucketVal;
+      if (parts.length !== 2 || isNaN(parseInt(parts[0], 10)) || String(bucketVal).includes(':')) {
+        return bucketVal;
+      }
       const formatHr = (h) => {
         const hr = parseInt(h, 10);
         if (hr === 0 || hr === 24) return '12am';
@@ -590,9 +621,41 @@
       }
     }
 
+    function setCustomScheduleMode(mode) {
+      customScheduleMode = mode;
+      const minBtn = document.getElementById('customModeMinutesBtn');
+      const winBtn = document.getElementById('customModeWindowBtn');
+      const minPane = document.getElementById('customMinutesPane');
+      const winPane = document.getElementById('customWindowPane');
+
+      if (mode === 'minutes') {
+        minBtn.className = 'flex-1 py-1.5 rounded-md bg-indigo-600 text-white transition';
+        winBtn.className = 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+        minPane.classList.remove('hidden');
+        winPane.classList.add('hidden');
+        winPane.classList.remove('grid');
+      } else {
+        winBtn.className = 'flex-1 py-1.5 rounded-md bg-indigo-600 text-white transition';
+        minBtn.className = 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+        minPane.classList.add('hidden');
+        winPane.classList.remove('hidden');
+        winPane.classList.add('grid');
+      }
+    }
+
+    function setQuickMinutes(mins) {
+      document.getElementById('customMinutesOffset').value = mins;
+    }
+
     function handleBucketChange() {
       const val = document.getElementById('scheduleBucketInput').value;
       const customDiv = document.getElementById('customBucketDiv');
+      const dateInput = document.getElementById('scheduleDateInput');
+
+      if (val && !dateInput.value) {
+        dateInput.value = toLocalYMD(new Date());
+      }
+
       if (val === 'custom') {
         customDiv.classList.remove('hidden');
         customDiv.classList.add('flex');
@@ -667,8 +730,10 @@
       autoFillNumber();
       document.getElementById('scheduleDateInput').value = '';
       document.getElementById('scheduleBucketInput').value = '';
-      document.getElementById('customBucketStart').value = '';
-      document.getElementById('customBucketEnd').value = '';
+      document.getElementById('customMinutesOffset').value = '5';
+      document.getElementById('customTimeStart').value = '';
+      document.getElementById('customTimeEnd').value = '';
+      setCustomScheduleMode('minutes');
       document.getElementById('customBucketDiv').classList.add('hidden');
       document.getElementById('customBucketDiv').classList.remove('flex');
       document.getElementById('newCallModal').classList.remove('hidden');
@@ -687,35 +752,82 @@
       const useCaseVal = document.getElementById('useCaseSelectInput').value;
       const languageVal = document.getElementById('languageSelectInput').value;
 
-      const dateVal = document.getElementById('scheduleDateInput').value;
+      let dateVal = document.getElementById('scheduleDateInput').value;
       let bucketVal = document.getElementById('scheduleBucketInput').value;
 
       if (!input) return alert('Please ensure a target phone number is provided.');
 
-      if (bucketVal === 'custom') {
-        const sh = parseInt(document.getElementById('customBucketStart').value, 10);
-        const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
-        if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
-          return alert('Please enter a valid custom time window (Start Hour must be less than End Hour).');
-        }
-        bucketVal = `${sh},${eh}`;
-      }
-
       let scheduleAtStr = null;
-      if (dateVal && bucketVal) {
+
+      if (bucketVal === 'custom') {
+        if (customScheduleMode === 'minutes') {
+          const mins = parseInt(document.getElementById('customMinutesOffset').value, 10);
+          if (isNaN(mins) || mins < 1 || mins > 1440) {
+            return alert('Please enter a valid number of minutes (between 1 and 1440).');
+          }
+          const scheduledDate = new Date(Date.now() + mins * 60 * 1000);
+          scheduleAtStr = scheduledDate.toISOString();
+          const timeLabel = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+          bucketVal = `In ${mins}m (${timeLabel})`;
+        } else {
+          if (!dateVal) {
+            dateVal = toLocalYMD(new Date());
+            document.getElementById('scheduleDateInput').value = dateVal;
+          }
+          const startTimeStr = document.getElementById('customTimeStart').value;
+          const endTimeStr = document.getElementById('customTimeEnd').value;
+          if (!startTimeStr) {
+            return alert('Please enter a Start Time for your custom schedule.');
+          }
+
+          const [year, month, day] = dateVal.split('-').map(Number);
+          const [startH, startM] = startTimeStr.split(':').map(Number);
+          const startMs = new Date(year, month - 1, day, startH, startM, 0, 0).getTime();
+
+          let endMs = startMs;
+          if (endTimeStr) {
+            const [endH, endM] = endTimeStr.split(':').map(Number);
+            endMs = new Date(year, month - 1, day, endH, endM, 0, 0).getTime();
+            if (endMs < startMs) {
+              return alert('End Time must be equal to or later than Start Time.');
+            }
+          }
+
+          const minFutureMs = Date.now() + 15 * 1000;
+          if (endMs < minFutureMs) {
+            return alert('The selected time has already passed for today. Please pick a future time.');
+          }
+
+          const effectiveStartMs = Math.max(startMs, minFutureMs);
+          const targetMs = endMs > effectiveStartMs
+            ? Math.floor(Math.random() * (endMs - effectiveStartMs)) + effectiveStartMs
+            : effectiveStartMs;
+
+          const scheduledDate = new Date(targetMs);
+          scheduleAtStr = scheduledDate.toISOString();
+
+          const fmtTime = (ms) => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+          bucketVal = endTimeStr && endTimeStr !== startTimeStr
+            ? `${fmtTime(startMs)} - ${fmtTime(endMs)}`
+            : fmtTime(startMs);
+        }
+      } else if (dateVal && bucketVal) {
         const [startHour, endHour] = bucketVal.split(',').map(Number);
         const [year, month, day] = dateVal.split('-').map(Number);
-        const scheduledDate = new Date(year, month - 1, day);
-        const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
-        const randomMinute = Math.floor(Math.random() * 60);
-        scheduledDate.setHours(randomHour, randomMinute, 0, 0);
+        const windowStartMs = new Date(year, month - 1, day, startHour, 0, 0, 0).getTime();
+        const windowEndMs = new Date(year, month - 1, day, endHour, 0, 0, 0).getTime();
 
-        if (scheduledDate.getTime() < Date.now()) {
+        const minFutureMs = Date.now() + 30 * 1000;
+        if (windowEndMs <= minFutureMs) {
           return alert('The selected time window has already passed for today. Please pick a future time or date.');
         }
-        scheduleAtStr = scheduledDate.toISOString();
+
+        // Clamp start bound to now so active windows never roll a past minute
+        const effectiveStartMs = Math.max(windowStartMs, minFutureMs);
+        const randomMs = Math.floor(Math.random() * (windowEndMs - effectiveStartMs)) + effectiveStartMs;
+        scheduleAtStr = new Date(randomMs).toISOString();
       } else if (dateVal || bucketVal) {
-        return alert('Please select both a date and a time window, or leave both blank to dial immediately.');
+        return alert('Please select both a date and a time window, or leave the window on "Dial Immediately".');
       }
 
       const btn = document.getElementById('initiateCallBtn');
@@ -844,7 +956,6 @@
         return alert('No completed or live calls found in the selected timeframe.');
       }
 
-      // Dynamically discover all valid brands present in this timeframe
       const brandSet = new Set();
       callList.forEach(c => {
         const b = normalizeBrand(c.structuredOutputs?.brand);
@@ -858,7 +969,6 @@
 
       const csvRows = [];
 
-      // Part 1: Overall Timeframe Summary by Brand & Segment (EN vs FR Avg TTA in seconds)
       csvRows.push('=== OVERALL SUMMARY (AVG TIME TO AGENT IN SECONDS) ===');
       csvRows.push(['Brand', 'Segment', 'EN Avg Time to Agent (Sec)', 'FR Avg Time to Agent (Sec)', 'EN Calls', 'FR Calls', 'Total Calls'].join(','));
 
@@ -904,7 +1014,6 @@
 
       csvRows.push('');
 
-      // Part 2: Daily Matrix grouped dynamically by Segment - Use Case
       const sections = new Map();
       callList.forEach(c => {
         const s = c.structuredOutputs || {};
@@ -1122,7 +1231,6 @@
     function render() {
       const allCallsSorted = Array.from(calls.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
 
-      // Apply Timeframe + Segment + Time Slot filters first
       const dashStart = document.getElementById('dashStartDate').value;
       const dashEnd = document.getElementById('dashEndDate').value;
       const bounds = getPresetBounds(currentTimeframe, dashStart, dashEnd);
@@ -1147,7 +1255,6 @@
         return true;
       });
 
-      // 1. Render Dashboard Tiles (split dynamically by Brand + Consumer/SMB, Avg TTA by EN/FR, no Avg Call Time)
       const tilesMap = new Map();
       timeframeCalls.forEach(c => {
         if (c.status === 'scheduled') return;
@@ -1277,7 +1384,6 @@
         }).join('');
       }
 
-      // 2. Render All Raw Call Data Table below tiles
       const liveCalls = timeframeCalls.filter(c => ['in-progress', 'ringing', 'queued'].includes(c.status));
       const scheduledCalls = timeframeCalls.filter(c => c.status === 'scheduled');
       const pastCalls = timeframeCalls.filter(c => !['in-progress', 'ringing', 'queued', 'scheduled'].includes(c.status));
