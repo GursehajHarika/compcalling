@@ -28,6 +28,8 @@ const AGENTS = {
 // Fallback number lookup for older historical Vapi calls without metadata
 const NUMBER_FALLBACK_MAP = {
   '+18887643771': { brand: 'Rogers', segment: 'Consumer' },
+  '+18667272141': { brand: 'Rogers', segment: 'Small Business', useCase: 'Billing' },
+  '+18772680444': { brand: 'Rogers', segment: 'Small Business', useCase: 'Sales' },
   '+18777421888': { brand: 'Rogers', segment: 'Small Business' },
   '+18663011942': { brand: 'Bell', segment: 'Consumer' },
   '+18884662415': { brand: 'Bell', segment: 'Small Business' },
@@ -128,7 +130,6 @@ function inferCallAttributes(call, existingOutputs = {}, parsedOutputs = {}) {
   const number = call?.customer?.number || call?.destination?.number || '';
   const numLookup = NUMBER_FALLBACK_MAP[number] || {};
 
-  // Infer from Assistant ID if specific env IDs are configured
   let inferredUseCase = null;
   let inferredLanguage = null;
   const aid = call?.assistantId;
@@ -149,7 +150,7 @@ function inferCallAttributes(call, existingOutputs = {}, parsedOutputs = {}) {
   return {
     brand: pick(meta.brand, parsedOutputs.brand, existingOutputs.brand, numLookup.brand) || '—',
     segment: pick(meta.segment, parsedOutputs.segment, existingOutputs.segment, numLookup.segment) || 'Consumer',
-    useCase: pick(meta.useCase, parsedOutputs.useCase, existingOutputs.useCase, inferredUseCase) || 'Billing',
+    useCase: pick(meta.useCase, parsedOutputs.useCase, existingOutputs.useCase, inferredUseCase, numLookup.useCase) || 'Billing',
     language: pick(meta.language, parsedOutputs.language, existingOutputs.language, inferredLanguage) || 'English'
   };
 }
@@ -192,7 +193,6 @@ async function makeVapiOutboundCall(targetNumber, useCase = 'Billing', language 
   if (!response.ok) throw new Error(await response.text());
   const callData = await response.json();
 
-  // Persist initial call attributes immediately so live & historical views retain configuration
   if (callData && callData.id) {
     const now = new Date().toISOString();
     const initialRecord = {
@@ -367,7 +367,6 @@ app.post('/api/calls/start', async (req, res) => {
       }
     }
 
-    // Live execution uses the specific routing agent and persists metadata
     const callData = await makeVapiOutboundCall(targetNumber, useCase, language, { brand, segment });
     return res.json({ success: true, scheduled: false, call: callData });
   } catch (err) {

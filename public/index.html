@@ -94,24 +94,24 @@
         </div>
       </div>
 
-      <!-- Dashboard Tiles Section (Brand x Segment, Avg TTA by Language) -->
+      <!-- Dashboard Tiles Section (Rogers, Telus, Koodo, Fido, Videotron — Split by Segment, Billing/Care vs Sales, & Language) -->
       <section class="space-y-3">
         <div class="flex items-center justify-between px-1">
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Brand & Segment Overview</h2>
-            <p class="text-[11px] text-slate-400">Average Time to Agent (in seconds) split by Brand, Consumer vs. SMB, and Language</p>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Core Carrier Overview (Rogers, Telus, Koodo, Fido, Videotron)</h2>
+            <p class="text-[11px] text-slate-400">Average Time to Agent (in seconds) split by Brand, Consumer vs. SMB, Billing/Care vs. Sales, and Language</p>
           </div>
           <span id="tileCountBadge" class="text-[11px] font-mono text-slate-400"></span>
         </div>
 
         <div id="brandTilesEmpty" class="bg-slate-900/30 border border-slate-800/70 rounded-xl p-8 text-center">
-          <p class="text-xs text-slate-400" id="brandTilesEmptyText">No completed or active calls with Brand data in the selected timeframe.</p>
+          <p class="text-xs text-slate-400" id="brandTilesEmptyText">No completed or active calls for Rogers, Telus, Koodo, Fido, or Videotron in the selected timeframe.</p>
           <button id="switchAllTimeHintBtn" onclick="setTimeframe('all')" class="hidden mt-3 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition">
             View All Historical Calls
           </button>
         </div>
 
-        <div id="brandSummaryContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 hidden"></div>
+        <div id="brandSummaryContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 hidden"></div>
       </section>
 
       <!-- All Raw Data Section -->
@@ -236,12 +236,12 @@
               <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Carrier Brand</label>
               <select id="brandSelectInput" onchange="autoFillNumber()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 <option value="Rogers">Rogers</option>
-                <option value="Bell">Bell</option>
                 <option value="Telus">Telus</option>
-                <option value="Videotron">Videotron</option>
-                <option value="Fido">Fido</option>
-                <option value="Virgin Plus">Virgin Plus</option>
                 <option value="Koodo">Koodo</option>
+                <option value="Fido">Fido</option>
+                <option value="Videotron">Videotron</option>
+                <option value="Bell">Bell</option>
+                <option value="Virgin Plus">Virgin Plus</option>
                 <option value="Freedom Mobile">Freedom Mobile</option>
                 <option value="Other">Custom / Other</option>
               </select>
@@ -260,15 +260,10 @@
             <input type="text" id="customBrandNameInput" placeholder="e.g. Fizz, Chatr, Eastlink..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
           </div>
 
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Dialing Target (Auto-filled)</label>
-            <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-          </div>
-
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">AI Use Case</label>
-              <select id="useCaseSelectInput" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+              <select id="useCaseSelectInput" onchange="autoFillNumber()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 <option value="Billing">Billing / Care</option>
                 <option value="Sales">Sales</option>
               </select>
@@ -280,6 +275,11 @@
                 <option value="French">Français</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Dialing Target (Auto-filled)</label>
+            <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
           </div>
           
           <div class="pt-2 border-t border-slate-800">
@@ -296,7 +296,7 @@
               </select>
             </div>
             
-            <!-- Updated Custom Call Schedule Box (Minutes Countdown or Exact HH:MM Window) -->
+            <!-- Custom Call Schedule Box (Minutes Countdown or Exact HH:MM Window) -->
             <div id="customBucketDiv" class="hidden flex-col gap-3 mt-3 p-3.5 bg-slate-950/90 border border-slate-700/80 rounded-lg">
               <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-800 text-[11px] font-medium">
                 <button type="button" id="customModeMinutesBtn" onclick="setCustomScheduleMode('minutes')" class="flex-1 py-1.5 rounded-md bg-indigo-600 text-white transition">
@@ -381,9 +381,12 @@
   </div>
 
   <script>
-    // Dialing helper lookup for New Call modal convenience only
+    // Dialing helper lookup (supports Segment + Use Case overrides for Rogers Small Business)
     const BRAND_NUMBERS = {
-      "Rogers": { "Consumer": "+18887643771", "Small Business": "+18777421888" },
+      "Rogers": {
+        "Consumer": { default: "+18887643771", Billing: "+18887643771", Sales: "+18887643771" },
+        "Small Business": { default: "+18667272141", Billing: "+18667272141", Sales: "+18772680444" }
+      },
       "Bell": { "Consumer": "+18663011942", "Small Business": "+18884662415" },
       "Telus": { "Consumer": "+18665582273", "Small Business": "+18888112323" },
       "Videotron": { "Consumer": "+18775120911", "Small Business": "+18883823366" },
@@ -391,6 +394,17 @@
       "Virgin Plus": { "Consumer": "+18889992321", "Small Business": "+18889992321" },
       "Koodo": { "Consumer": "+18669956636", "Small Business": "+18669956636" },
       "Freedom Mobile": { "Consumer": "+18779463184", "Small Business": "+18779463184" }
+    };
+
+    // Main Dashboard Overview restricted strictly to these 5 brands
+    const DASHBOARD_ALLOWED_BRANDS = {
+      'rogers': 'Rogers',
+      'telus': 'Telus',
+      'koodo': 'Koodo',
+      'koodoo': 'Koodo',
+      'fido': 'Fido',
+      'videotron': 'Videotron',
+      'vidéotron': 'Videotron'
     };
 
     const calls = new Map();
@@ -416,18 +430,16 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Format Date to local YYYY-MM-DD
     function toLocalYMD(d) {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    // Compute Start & End Date bounds for presets
     function getPresetBounds(preset, customStartVal, customEndVal) {
       const now = new Date();
       if (preset === 'all') return { start: null, end: null, label: 'All Time' };
 
       if (preset === 'week') {
-        const day = now.getDay(); // 0 = Sun, 1 = Mon ...
+        const day = now.getDay();
         const diffToMon = day === 0 ? -6 : 1 - day;
         const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMon, 0, 0, 0, 0);
         const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6, 23, 59, 59, 999);
@@ -499,7 +511,6 @@
       setTimeframe('week');
     }
 
-    // Parse any wait/time-to-agent representation into integer seconds
     function parseToSec(val) {
       if (val === null || val === undefined) return null;
       if (typeof val === 'number' && !isNaN(val)) return Math.round(val);
@@ -547,6 +558,7 @@
       if (['identifying...', 'not identified', 'unknown', 'manual dial', 'manual entry', 'pending...'].includes(lower)) {
         return null;
       }
+      if (DASHBOARD_ALLOWED_BRANDS[lower]) return DASHBOARD_ALLOWED_BRANDS[lower];
       return b;
     }
 
@@ -566,10 +578,12 @@
     }
 
     function normalizeUseCase(rawUseCase) {
-      if (!rawUseCase) return 'General';
-      const u = String(rawUseCase).trim();
-      if (!u || u === '—' || u.toLowerCase() === 'unknown') return 'General';
-      return u;
+      if (!rawUseCase) return 'Billing';
+      const u = String(rawUseCase).trim().toLowerCase();
+      if (u.includes('sale')) return 'Sales';
+      if (u.includes('bill') || u.includes('care') || u.includes('support') || u.includes('service')) return 'Billing';
+      if (!u || u === '—' || u === 'unknown') return 'Billing';
+      return String(rawUseCase).trim();
     }
 
     function formatTimeBucketString(bucketVal) {
@@ -606,6 +620,7 @@
     function autoFillNumber() {
       const brand = document.getElementById('brandSelectInput').value;
       const segment = document.getElementById('segmentSelectInput').value;
+      const useCase = document.getElementById('useCaseSelectInput').value;
       const targetInput = document.getElementById('targetNumberInput');
       const customBrandDiv = document.getElementById('customBrandNameDiv');
 
@@ -615,8 +630,11 @@
         targetInput.placeholder = "Enter manual phone number...";
       } else {
         customBrandDiv.classList.add('hidden');
-        if (BRAND_NUMBERS[brand] && BRAND_NUMBERS[brand][segment]) {
-          targetInput.value = BRAND_NUMBERS[brand][segment];
+        const segEntry = BRAND_NUMBERS[brand]?.[segment];
+        if (typeof segEntry === 'string') {
+          targetInput.value = segEntry;
+        } else if (segEntry && typeof segEntry === 'object') {
+          targetInput.value = segEntry[useCase] || segEntry.default || '';
         }
       }
     }
@@ -822,7 +840,6 @@
           return alert('The selected time window has already passed for today. Please pick a future time or date.');
         }
 
-        // Clamp start bound to now so active windows never roll a past minute
         const effectiveStartMs = Math.max(windowStartMs, minFutureMs);
         const randomMs = Math.floor(Math.random() * (windowEndMs - effectiveStartMs)) + effectiveStartMs;
         scheduleAtStr = new Date(randomMs).toISOString();
@@ -949,7 +966,6 @@
       return str;
     }
 
-    // Dynamic Brand x Language Time-to-Agent Matrix Export (No Hardcoded Brands)
     function downloadDynamicBrandGrid() {
       const callList = getExportFilteredCalls(true);
       if (callList.length === 0) {
@@ -970,7 +986,7 @@
       const csvRows = [];
 
       csvRows.push('=== OVERALL SUMMARY (AVG TIME TO AGENT IN SECONDS) ===');
-      csvRows.push(['Brand', 'Segment', 'EN Avg Time to Agent (Sec)', 'FR Avg Time to Agent (Sec)', 'EN Calls', 'FR Calls', 'Total Calls'].join(','));
+      csvRows.push(['Brand', 'Segment', 'Use Case', 'EN Avg Time to Agent (Sec)', 'FR Avg Time to Agent (Sec)', 'EN Calls', 'FR Calls', 'Total Calls'].join(','));
 
       const summaryMap = new Map();
       callList.forEach(c => {
@@ -978,12 +994,13 @@
         const brand = normalizeBrand(s.brand);
         if (!brand) return;
         const segment = normalizeSegment(s.segment);
+        const useCase = normalizeUseCase(s.useCase);
         const lang = normalizeLanguage(s.language);
         const tSec = parseToSec(s.timeToAgent);
 
-        const key = `${brand}||${segment}`;
+        const key = `${brand}||${segment}||${useCase}`;
         if (!summaryMap.has(key)) {
-          summaryMap.set(key, { brand, segment, enVals: [], frVals: [], enCount: 0, frCount: 0, total: 0 });
+          summaryMap.set(key, { brand, segment, useCase, enVals: [], frVals: [], enCount: 0, frCount: 0, total: 0 });
         }
         const entry = summaryMap.get(key);
         entry.total++;
@@ -997,13 +1014,14 @@
       });
 
       Array.from(summaryMap.values())
-        .sort((a, b) => a.brand.localeCompare(b.brand) || a.segment.localeCompare(b.segment))
+        .sort((a, b) => a.brand.localeCompare(b.brand) || a.segment.localeCompare(b.segment) || a.useCase.localeCompare(b.useCase))
         .forEach(item => {
           const enAvg = item.enVals.length > 0 ? Math.round(item.enVals.reduce((sum, v) => sum + v, 0) / item.enVals.length) : '-';
           const frAvg = item.frVals.length > 0 ? Math.round(item.frVals.reduce((sum, v) => sum + v, 0) / item.frVals.length) : '-';
           csvRows.push([
             csvEscape(item.brand),
             csvEscape(item.segment),
+            csvEscape(item.useCase === 'Billing' ? 'Billing / Care' : item.useCase),
             enAvg,
             frAvg,
             item.enCount,
@@ -1023,7 +1041,7 @@
         const segment = normalizeSegment(s.segment);
         const useCase = normalizeUseCase(s.useCase);
         const lang = normalizeLanguage(s.language);
-        const sectionKey = `${segment} - ${useCase}`;
+        const sectionKey = `${segment} - ${useCase === 'Billing' ? 'Billing / Care' : useCase}`;
 
         const d = new Date(c.startedAt);
         const ymd = toLocalYMD(d);
@@ -1086,7 +1104,6 @@
       closeExportModal();
     }
 
-    // Raw Call Data CSV Export for Selected Timeframe
     function downloadRawCSV() {
       const callList = getExportFilteredCalls(false);
       if (callList.length === 0) return alert('No calls found in the selected timeframe.');
@@ -1255,25 +1272,29 @@
         return true;
       });
 
+      // 1. Render Dashboard Tiles (strictly Rogers, Telus, Koodo, Fido, Videotron — split by Segment, Billing/Care vs Sales, and EN/FR)
+      const brandOrder = ['Rogers', 'Telus', 'Koodo', 'Fido', 'Videotron'];
       const tilesMap = new Map();
+
       timeframeCalls.forEach(c => {
         if (c.status === 'scheduled') return;
         const s = c.structuredOutputs || {};
         const brand = normalizeBrand(s.brand);
-        if (!brand) return;
+        if (!brand || !brandOrder.includes(brand)) return;
 
         const segment = normalizeSegment(s.segment);
-        const lang = normalizeLanguage(s.language);
+        const useCase = normalizeUseCase(s.useCase); // 'Billing' | 'Sales'
+        const lang = normalizeLanguage(s.language);   // 'EN' | 'FR'
         const tileKey = `${brand}||${segment}`;
 
         if (!tilesMap.has(tileKey)) {
           tilesMap.set(tileKey, {
             brand,
             segment,
-            enTTAs: [],
-            frTTAs: [],
-            enCalls: 0,
-            frCalls: 0,
+            billingEnTTAs: [],
+            billingFrTTAs: [],
+            salesEnTTAs: [],
+            salesFrTTAs: [],
             totalCalls: 0,
             isLive: false,
             latestLiveCall: null
@@ -1288,12 +1309,14 @@
         }
 
         const ttaSec = parseToSec(s.timeToAgent);
-        if (lang === 'FR') {
-          tile.frCalls++;
-          if (ttaSec !== null) tile.frTTAs.push(ttaSec);
-        } else {
-          tile.enCalls++;
-          if (ttaSec !== null) tile.enTTAs.push(ttaSec);
+        if (ttaSec !== null) {
+          if (useCase === 'Sales') {
+            if (lang === 'FR') tile.salesFrTTAs.push(ttaSec);
+            else tile.salesEnTTAs.push(ttaSec);
+          } else {
+            if (lang === 'FR') tile.billingFrTTAs.push(ttaSec);
+            else tile.billingEnTTAs.push(ttaSec);
+          }
         }
       });
 
@@ -1304,9 +1327,15 @@
         document.getElementById('tileCountBadge').textContent = '0 tiles';
 
         const hintBtn = document.getElementById('switchAllTimeHintBtn');
-        if (currentTimeframe !== 'all' && allCallsSorted.some(c => c.status !== 'scheduled')) {
+        const hasCoreHistorical = allCallsSorted.some(c => {
+          if (c.status === 'scheduled') return false;
+          const b = normalizeBrand(c.structuredOutputs?.brand);
+          return b && brandOrder.includes(b);
+        });
+
+        if (currentTimeframe !== 'all' && hasCoreHistorical) {
           hintBtn.classList.remove('hidden');
-          hintBtn.textContent = `View All Historical Calls (${allCallsSorted.filter(c => c.status !== 'scheduled').length})`;
+          hintBtn.textContent = 'View All Historical Calls';
         } else {
           hintBtn.classList.add('hidden');
         }
@@ -1314,18 +1343,21 @@
         brandTilesEmpty.classList.add('hidden');
         brandSummaryContainer.classList.remove('hidden');
 
-        const sortedTiles = Array.from(tilesMap.values()).sort((a, b) =>
-          a.brand.localeCompare(b.brand) || a.segment.localeCompare(b.segment)
-        );
+        const sortedTiles = Array.from(tilesMap.values()).sort((a, b) => {
+          const idxA = brandOrder.indexOf(a.brand);
+          const idxB = brandOrder.indexOf(b.brand);
+          if (idxA !== idxB) return idxA - idxB;
+          return a.segment.localeCompare(b.segment);
+        });
         document.getElementById('tileCountBadge').textContent = `${sortedTiles.length} tile${sortedTiles.length === 1 ? '' : 's'}`;
 
+        const calcAvg = (arr) => arr.length > 0 ? Math.round(arr.reduce((sum, v) => sum + v, 0) / arr.length) : null;
+
         brandSummaryContainer.innerHTML = sortedTiles.map(tile => {
-          const enAvgSec = tile.enTTAs.length > 0
-            ? Math.round(tile.enTTAs.reduce((sum, v) => sum + v, 0) / tile.enTTAs.length)
-            : null;
-          const frAvgSec = tile.frTTAs.length > 0
-            ? Math.round(tile.frTTAs.reduce((sum, v) => sum + v, 0) / tile.frTTAs.length)
-            : null;
+          const billingEnAvg = calcAvg(tile.billingEnTTAs);
+          const billingFrAvg = calcAvg(tile.billingFrTTAs);
+          const salesEnAvg = calcAvg(tile.salesEnTTAs);
+          const salesFrAvg = calcAvg(tile.salesFrTTAs);
 
           const segBadgeClass = tile.segment === 'SMB'
             ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
@@ -1340,7 +1372,7 @@
             : null;
 
           return `
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-3.5 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-3 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
               <div class="flex items-start justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
                   ${statusDot}
@@ -1352,26 +1384,58 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-2.5">
-                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">EN Avg TTA</span>
-                    <span class="text-[10px] font-mono text-slate-500">n=${tile.enTTAs.length}</span>
+              <div class="space-y-2.5">
+                <!-- Billing / Care Sub-block -->
+                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-2.5">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">Billing / Care Avg TTA</span>
+                    <span class="text-[10px] font-mono text-slate-500">${tile.billingEnTTAs.length + tile.billingFrTTAs.length} measured</span>
                   </div>
-                  <div class="text-base font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(enAvgSec)}</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-900/70 rounded px-2.5 py-1.5 border border-slate-800/60">
+                      <div class="flex items-center justify-between text-[9px] text-slate-400 uppercase font-semibold">
+                        <span>EN</span>
+                        <span class="font-mono text-slate-500">n=${tile.billingEnTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-amber-300 font-mono mt-0.5">${formatSecDisplay(billingEnAvg)}</div>
+                    </div>
+                    <div class="bg-slate-900/70 rounded px-2.5 py-1.5 border border-slate-800/60">
+                      <div class="flex items-center justify-between text-[9px] text-slate-400 uppercase font-semibold">
+                        <span>FR</span>
+                        <span class="font-mono text-slate-500">n=${tile.billingFrTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-cyan-300 font-mono mt-0.5">${formatSecDisplay(billingFrAvg)}</div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">FR Avg TTA</span>
-                    <span class="text-[10px] font-mono text-slate-500">n=${tile.frTTAs.length}</span>
+                <!-- Sales Sub-block -->
+                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-2.5">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Sales Avg TTA</span>
+                    <span class="text-[10px] font-mono text-slate-500">${tile.salesEnTTAs.length + tile.salesFrTTAs.length} measured</span>
                   </div>
-                  <div class="text-base font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(frAvgSec)}</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-900/70 rounded px-2.5 py-1.5 border border-slate-800/60">
+                      <div class="flex items-center justify-between text-[9px] text-slate-400 uppercase font-semibold">
+                        <span>EN</span>
+                        <span class="font-mono text-slate-500">n=${tile.salesEnTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-amber-300 font-mono mt-0.5">${formatSecDisplay(salesEnAvg)}</div>
+                    </div>
+                    <div class="bg-slate-900/70 rounded px-2.5 py-1.5 border border-slate-800/60">
+                      <div class="flex items-center justify-between text-[9px] text-slate-400 uppercase font-semibold">
+                        <span>FR</span>
+                        <span class="font-mono text-slate-500">n=${tile.salesFrTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-cyan-300 font-mono mt-0.5">${formatSecDisplay(salesFrAvg)}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               ${tile.isLive ? `
-                <div class="pt-2.5 border-t border-slate-800/80">
+                <div class="pt-2 border-t border-slate-800/80">
                   <div class="text-[9px] uppercase font-semibold text-emerald-400 tracking-wider flex items-center gap-1.5 mb-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live Audio Feed
                   </div>
@@ -1384,6 +1448,7 @@
         }).join('');
       }
 
+      // 2. Render All Raw Call Data Table below tiles
       const liveCalls = timeframeCalls.filter(c => ['in-progress', 'ringing', 'queued'].includes(c.status));
       const scheduledCalls = timeframeCalls.filter(c => c.status === 'scheduled');
       const pastCalls = timeframeCalls.filter(c => !['in-progress', 'ringing', 'queued', 'scheduled'].includes(c.status));
@@ -1441,7 +1506,8 @@
           const timeSlot = isSched ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
           const brandDisplay = normalizeBrand(s.brand) || 'Manual Entry';
           const segDisplay = normalizeSegment(s.segment);
-          const useCaseDisplay = normalizeUseCase(s.useCase);
+          const useCaseRaw = normalizeUseCase(s.useCase);
+          const useCaseDisplay = useCaseRaw === 'Billing' ? 'Billing / Care' : useCaseRaw;
           const langDisplay = normalizeLanguage(s.language);
           const ttaSec = parseToSec(s.timeToAgent);
 
