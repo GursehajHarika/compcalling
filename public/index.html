@@ -97,7 +97,7 @@
         <div class="flex items-center justify-between px-1">
           <div>
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Brand & Segment Overview</h2>
-            <p class="text-[11px] text-slate-400">Average Time to Agent (in seconds) split by Brand, Consumer vs. SMB, and Language</p>
+            <p class="text-[11px] text-slate-400">Average Time to Agent (in seconds) split by Brand, Consumer vs. SMB, Language, and Use Case</p>
           </div>
           <span id="tileCountBadge" class="text-[11px] font-mono text-slate-400"></span>
         </div>
@@ -270,11 +270,15 @@
           </div>
           
           <div class="pt-2 border-t border-slate-800">
-            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Schedule Time Window (Optional)</label>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Schedule Time Window / Relative Quick-Launch</label>
             <div class="flex gap-3">
               <input type="date" id="scheduleDateInput" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" style="color-scheme: dark;">
               <select id="scheduleBucketInput" onchange="handleBucketChange()" class="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 <option value="">Select Window...</option>
+                <option value="2min">In 2 Minutes Quick-Launch</option>
+                <option value="5min">In 5 Minutes Quick-Launch</option>
+                <option value="10min">In 10 Minutes Quick-Launch</option>
+                <option value="30min">In 30 Minutes Quick-Launch</option>
                 <option value="9,11">9:00 AM - 11:00 AM</option>
                 <option value="12,14">12:00 PM - 2:00 PM</option>
                 <option value="16,18">4:00 PM - 6:00 PM</option>
@@ -632,10 +636,7 @@
     function formatSecDisplay(seconds) {
       if (seconds === null || seconds === undefined || isNaN(seconds)) return '—';
       const rounded = Math.round(seconds);
-      if (rounded < 60) return `${rounded}s`;
-      const m = Math.floor(rounded / 60);
-      const s = rounded % 60;
-      return `${rounded}s (${m}:${String(s).padStart(2, '0')})`;
+      return `${rounded}s`;
     }
 
     function normalizeBrand(rawBrand) {
@@ -649,7 +650,6 @@
       return b;
     }
 
-    // Normalized lookup helper for Segment
     function normalizeSegment(rawSeg) {
       if (!rawSeg) return 'Consumer';
       const s = String(rawSeg).trim().toLowerCase();
@@ -721,12 +721,20 @@
     function handleBucketChange() {
       const val = document.getElementById('scheduleBucketInput').value;
       const customDiv = document.getElementById('customBucketDiv');
-      if (val === 'custom') {
+      const dateInput = document.getElementById('scheduleDateInput');
+      if (['2min', '5min', '10min', '30min'].includes(val)) {
+        customDiv.classList.add('hidden');
+        customDiv.classList.remove('flex');
+        dateInput.value = toLocalYMD(new Date());
+        dateInput.disabled = true;
+      } else if (val === 'custom') {
         customDiv.classList.remove('hidden');
         customDiv.classList.add('flex');
+        dateInput.disabled = false;
       } else {
         customDiv.classList.add('hidden');
         customDiv.classList.remove('flex');
+        dateInput.disabled = false;
       }
     }
 
@@ -870,7 +878,7 @@
         return true;
       });
 
-      // 1. Render Dashboard Tiles (Consolidated on a Brand level - Rogers, Telus, Videotron, Koodo, Fido - with side-by-side Consumer and SMB sections)
+      // 1. Render Dashboard Tiles
       const tilesMap = new Map();
       const allowedBrands = ['Rogers', 'Telus', 'Videotron', 'Koodo', 'Fido'];
       timeframeCalls.forEach(c => {
@@ -878,16 +886,20 @@
         const s = c.structuredOutputs || {};
         const brand = normalizeBrand(s.brand);
         if (!brand || !allowedBrands.some(ab => ab.toLowerCase() === brand.toLowerCase())) return;
+        
         const segment = normalizeSegment(s.segment); // 'Consumer' or 'SMB'
         const lang = normalizeLanguage(s.language);   // 'EN' or 'FR'
+        const uc = normalizeUseCase(s.useCase).toLowerCase();
+        const isBilling = uc.includes('billing') || uc.includes('care');
+
         const tileKey = allowedBrands.find(ab => ab.toLowerCase() === brand.toLowerCase());
         if (!tilesMap.has(tileKey)) {
           tilesMap.set(tileKey, {
             brand: tileKey,
-            consumerEnTTAs: [],
-            consumerFrTTAs: [],
-            smbEnTTAs: [],
-            smbFrTTAs: [],
+            consumerEnBillingTTAs: [], consumerEnSalesTTAs: [],
+            consumerFrBillingTTAs: [], consumerFrSalesTTAs: [],
+            smbEnBillingTTAs: [], smbEnSalesTTAs: [],
+            smbFrBillingTTAs: [], smbFrSalesTTAs: [],
             totalCalls: 0,
             isLive: false,
             latestLiveCall: null
@@ -899,14 +911,25 @@
           tile.isLive = true;
           if (!tile.latestLiveCall) tile.latestLiveCall = c;
         }
+        
         const ttaSec = parseToSec(s.timeToAgent);
         if (ttaSec !== null) {
           if (segment === 'Consumer') {
-            if (lang === 'FR') tile.consumerFrTTAs.push(ttaSec);
-            else tile.consumerEnTTAs.push(ttaSec);
+            if (lang === 'FR') {
+              if (isBilling) tile.consumerFrBillingTTAs.push(ttaSec);
+              else tile.consumerFrSalesTTAs.push(ttaSec);
+            } else {
+              if (isBilling) tile.consumerEnBillingTTAs.push(ttaSec);
+              else tile.consumerEnSalesTTAs.push(ttaSec);
+            }
           } else {
-            if (lang === 'FR') tile.smbFrTTAs.push(ttaSec);
-            else tile.smbEnTTAs.push(ttaSec);
+            if (lang === 'FR') {
+              if (isBilling) tile.smbFrBillingTTAs.push(ttaSec);
+              else tile.smbFrSalesTTAs.push(ttaSec);
+            } else {
+              if (isBilling) tile.smbEnBillingTTAs.push(ttaSec);
+              else tile.smbEnSalesTTAs.push(ttaSec);
+            }
           }
         }
       });
@@ -927,18 +950,24 @@
         brandTilesEmpty.classList.add('hidden');
         brandSummaryContainer.classList.remove('hidden');
         
-        // Order specifically as Rogers, Telus, Videotron, Koodo, Fido
         const sortedTiles = allowedBrands
           .filter(b => tilesMap.has(b))
           .map(b => tilesMap.get(b));
           
         document.getElementById('tileCountBadge').textContent = `${sortedTiles.length} brand tile${sortedTiles.length === 1 ? '' : 's'}`;
         brandSummaryContainer.innerHTML = sortedTiles.map(tile => {
-          const cEnAvg = tile.consumerEnTTAs.length > 0 ? Math.round(tile.consumerEnTTAs.reduce((s, v) => s + v, 0) / tile.consumerEnTTAs.length) : null;
-          const cFrAvg = tile.consumerFrTTAs.length > 0 ? Math.round(tile.consumerFrTTAs.reduce((s, v) => s + v, 0) / tile.consumerFrTTAs.length) : null;
-          const sEnAvg = tile.smbEnTTAs.length > 0 ? Math.round(tile.smbEnTTAs.reduce((s, v) => s + v, 0) / tile.smbEnTTAs.length) : null;
-          const sFrAvg = tile.smbFrTTAs.length > 0 ? Math.round(tile.smbFrTTAs.reduce((s, v) => s + v, 0) / tile.smbFrTTAs.length) : null;
+          const getAvg = (arr) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
           
+          const cEnBill = getAvg(tile.consumerEnBillingTTAs);
+          const cEnSales = getAvg(tile.consumerEnSalesTTAs);
+          const cFrBill = getAvg(tile.consumerFrBillingTTAs);
+          const cFrSales = getAvg(tile.consumerFrSalesTTAs);
+
+          const sEnBill = getAvg(tile.smbEnBillingTTAs);
+          const sEnSales = getAvg(tile.smbEnSalesTTAs);
+          const sFrBill = getAvg(tile.smbFrBillingTTAs);
+          const sFrSales = getAvg(tile.smbFrSalesTTAs);
+
           const statusDot = tile.isLive
             ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
             : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
@@ -948,8 +977,7 @@
             : null;
             
           return `
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-4 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
-              <!-- Top Row: Brand & Combined Call Count -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-4 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700 col-span-1 lg:col-span-2">
               <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div class="flex items-center gap-2">
                   ${statusDot}
@@ -958,28 +986,29 @@
                 <span class="px-2.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${tile.totalCalls} call${tile.totalCalls === 1 ? '' : 's'}</span>
               </div>
               
-              <!-- Two Columns: Consumer vs SMB side by side -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Consumer Column -->
                 <div class="space-y-2">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-extrabold text-indigo-400 uppercase tracking-widest">Consumer</span>
-                    <span class="text-[10px] text-slate-500 font-mono">n=${tile.consumerEnTTAs.length + tile.consumerFrTTAs.length}</span>
+                    <span class="text-[9px] font-mono text-slate-500">n=${tile.consumerEnBillingTTAs.length + tile.consumerEnSalesTTAs.length + tile.consumerFrBillingTTAs.length + tile.consumerFrSalesTTAs.length}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-2">
-                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3 space-y-1.5">
                       <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
                         <span>EN AVG</span>
-                        <span class="text-slate-500">n=${tile.consumerEnTTAs.length}</span>
+                        <span class="text-slate-500 font-mono">n=${tile.consumerEnBillingTTAs.length + tile.consumerEnSalesTTAs.length}</span>
                       </div>
-                      <div class="text-sm font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(cEnAvg)}</div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Billing:</span> <span class="text-amber-300 font-mono font-bold">${formatSecDisplay(cEnBill)}</span></div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Sales:</span> <span class="text-amber-300 font-mono font-bold">${formatSecDisplay(cEnSales)}</span></div>
                     </div>
-                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3 space-y-1.5">
                       <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
                         <span>FR AVG</span>
-                        <span class="text-slate-500">n=${tile.consumerFrTTAs.length}</span>
+                        <span class="text-slate-500 font-mono">n=${tile.consumerFrBillingTTAs.length + tile.consumerFrSalesTTAs.length}</span>
                       </div>
-                      <div class="text-sm font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(cFrAvg)}</div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Billing:</span> <span class="text-cyan-300 font-mono font-bold">${formatSecDisplay(cFrBill)}</span></div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Sales:</span> <span class="text-cyan-300 font-mono font-bold">${formatSecDisplay(cFrSales)}</span></div>
                     </div>
                   </div>
                 </div>
@@ -988,22 +1017,24 @@
                 <div class="space-y-2 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-4 pt-3 md:pt-0">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-extrabold text-purple-400 uppercase tracking-widest">Small Business</span>
-                    <span class="text-[10px] text-slate-500 font-mono">n=${tile.smbEnTTAs.length + tile.smbFrTTAs.length}</span>
+                    <span class="text-[9px] font-mono text-slate-500">n=${tile.smbEnBillingTTAs.length + tile.smbEnSalesTTAs.length + tile.smbFrBillingTTAs.length + tile.smbFrSalesTTAs.length}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-2">
-                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3 space-y-1.5">
                       <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
                         <span>EN AVG</span>
-                        <span class="text-slate-500">n=${tile.smbEnTTAs.length}</span>
+                        <span class="text-slate-500 font-mono">n=${tile.smbEnBillingTTAs.length + tile.smbEnSalesTTAs.length}</span>
                       </div>
-                      <div class="text-sm font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(sEnAvg)}</div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Billing:</span> <span class="text-amber-300 font-mono font-bold">${formatSecDisplay(sEnBill)}</span></div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Sales:</span> <span class="text-amber-300 font-mono font-bold">${formatSecDisplay(sEnSales)}</span></div>
                     </div>
-                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3 space-y-1.5">
                       <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
                         <span>FR AVG</span>
-                        <span class="text-slate-500">n=${tile.smbFrTTAs.length}</span>
+                        <span class="text-slate-500 font-mono">n=${tile.smbFrBillingTTAs.length + tile.smbFrSalesTTAs.length}</span>
                       </div>
-                      <div class="text-sm font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(sFrAvg)}</div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Billing:</span> <span class="text-cyan-300 font-mono font-bold">${formatSecDisplay(sFrBill)}</span></div>
+                      <div class="text-[10px] font-medium text-slate-400 flex justify-between"><span>Sales:</span> <span class="text-cyan-300 font-mono font-bold">${formatSecDisplay(sFrSales)}</span></div>
                     </div>
                   </div>
                 </div>
@@ -1032,7 +1063,6 @@
         return true;
       });
 
-      // Update Sub-filters counters
       document.getElementById('countAll').textContent = timeframeCalls.length;
       document.getElementById('countLive').textContent = timeframeCalls.filter(c => ['in-progress', 'ringing', 'queued'].includes(c.status)).length;
       document.getElementById('countScheduled').textContent = timeframeCalls.filter(c => c.status === 'scheduled').length;
@@ -1293,53 +1323,129 @@
         return true;
       });
 
-      const allowedBrands = ['Rogers', 'Telus', 'Videotron', 'Koodo', 'Fido'];
-      const dataMap = {};
-      allowedBrands.forEach(b => {
-        dataMap[b] = {
-          consumer_en: [], consumer_fr: [],
-          smb_en: [], smb_fr: []
-        };
-      });
-
+      // Get unique sorted dates in DD-MMM format
+      const dateMap = {};
       matchCalls.forEach(c => {
-        const s = c.structuredOutputs || {};
-        const rawBrand = normalizeBrand(s.brand);
-        if (!rawBrand) return;
-        const matchedBrand = allowedBrands.find(b => b.toLowerCase() === rawBrand.toLowerCase());
-        if (!matchedBrand) return;
-
-        const seg = normalizeSegment(s.segment);
-        const lang = normalizeLanguage(s.language);
-        const ttaSec = parseToSec(s.timeToAgent);
-
-        if (ttaSec !== null) {
-          const key = `${seg.toLowerCase()}_${lang.toLowerCase()}`;
-          if (dataMap[matchedBrand][key]) {
-            dataMap[matchedBrand][key].push(ttaSec);
-          }
+        const d = new Date(c.startedAt);
+        const ymd = toLocalYMD(d);
+        if (!dateMap[ymd]) {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          dateMap[ymd] = {
+            dateStr: `${d.getDate()}-${months[d.getMonth()]}`,
+            dow: days[d.getDay()],
+            calls: []
+          };
         }
+        dateMap[ymd].calls.push(c);
+      });
+      const sortedDatesYMD = Object.keys(dateMap).sort();
+
+      const consumerBrands = ['Bell', 'Rogers', 'Telus', 'Videotron', 'Virgin Plus', 'Fido', 'Koodo'];
+      const businessBrands = ['Bell', 'Rogers', 'Telus', 'Videotron'];
+
+      const getAverageTTA = (callsList, brand, segment, useCase, lang) => {
+        const filtered = callsList.filter(c => {
+          const s = c.structuredOutputs || {};
+          const b = normalizeBrand(s.brand);
+          if (!b || b.toLowerCase() !== brand.toLowerCase()) return false;
+          if (normalizeSegment(s.segment) !== segment) return false;
+          if (normalizeLanguage(s.language) !== lang) return false;
+          
+          const uc = normalizeUseCase(s.useCase).toLowerCase();
+          const isBillingCare = uc.includes('billing') || uc.includes('care');
+          if (useCase === 'Sales') {
+            return uc.includes('sales');
+          } else {
+            return isBillingCare;
+          }
+        });
+        if (filtered.length === 0) return '-';
+        let sum = 0;
+        let count = 0;
+        filtered.forEach(c => {
+          const val = parseToSec(c.structuredOutputs?.timeToAgent);
+          if (val !== null) {
+            sum += val;
+            count++;
+          }
+        });
+        return count > 0 ? Math.round(sum / count) : '-';
+      };
+
+      let csvLines = [];
+
+      // 1. Consumer - Sales Section
+      csvLines.push('"Consumer - Sales"');
+      let h1 = ['DoW', 'Date'];
+      consumerBrands.forEach(b => { h1.push(b); h1.push(''); });
+      csvLines.push(h1.join(','));
+      
+      let h2 = ['', ''];
+      consumerBrands.forEach(() => { h2.push('EN'); h2.push('FR'); });
+      csvLines.push(h2.join(','));
+
+      sortedDatesYMD.forEach(ymd => {
+        const dObj = dateMap[ymd];
+        let row = [dObj.dow, dObj.dateStr];
+        consumerBrands.forEach(b => {
+          row.push(getAverageTTA(dObj.calls, b, 'Consumer', 'Sales', 'EN'));
+          row.push(getAverageTTA(dObj.calls, b, 'Consumer', 'Sales', 'FR'));
+        });
+        csvLines.push(row.join(','));
       });
 
-      const getAvgStr = (arr) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : '';
+      csvLines.push('');
+      csvLines.push('');
 
-      const headers = ['Brand', 'Consumer EN AVG', 'Consumer FR AVG', 'Small Business EN AVG', 'Small Business FR AVG'];
-      const rows = allowedBrands.map(b => {
-        const card = dataMap[b];
-        return [
-          b,
-          getAvgStr(card.consumer_en),
-          getAvgStr(card.consumer_fr),
-          getAvgStr(card.smb_en),
-          getAvgStr(card.smb_fr)
-        ];
+      // 2. Consumer - Care & Loyalty Section
+      csvLines.push('"Consumer - Care & Loyalty"');
+      csvLines.push(h1.join(','));
+      csvLines.push(h2.join(','));
+      sortedDatesYMD.forEach(ymd => {
+        const dObj = dateMap[ymd];
+        let row = [dObj.dow, dObj.dateStr];
+        consumerBrands.forEach(b => {
+          row.push(getAverageTTA(dObj.calls, b, 'Consumer', 'Care', 'EN'));
+          row.push(getAverageTTA(dObj.calls, b, 'Consumer', 'Care', 'FR'));
+        });
+        csvLines.push(row.join(','));
       });
 
-      let csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+      csvLines.push('');
+      csvLines.push('');
+
+      // 3. Business - Sales, Care & Loyalty Section
+      csvLines.push('"Business - Sales, Care & Loyalty"');
+      let b1 = ['DoW', 'Date'];
+      businessBrands.forEach(b => { b1.push(b); b1.push(''); b1.push(''); b1.push(''); });
+      csvLines.push(b1.join(','));
+
+      let b2 = ['', ''];
+      businessBrands.forEach(() => { b2.push('Sales'); b2.push(''); b2.push('Care/Loyalty'); b2.push(''); });
+      csvLines.push(b2.join(','));
+
+      let b3 = ['', ''];
+      businessBrands.forEach(() => { b3.push('EN'); b3.push('FR'); b3.push('EN'); b3.push('FR'); });
+      csvLines.push(b3.join(','));
+
+      sortedDatesYMD.forEach(ymd => {
+        const dObj = dateMap[ymd];
+        let row = [dObj.dow, dObj.dateStr];
+        businessBrands.forEach(b => {
+          row.push(getAverageTTA(dObj.calls, b, 'SMB', 'Sales', 'EN'));
+          row.push(getAverageTTA(dObj.calls, b, 'SMB', 'Sales', 'FR'));
+          row.push(getAverageTTA(dObj.calls, b, 'SMB', 'Care', 'EN'));
+          row.push(getAverageTTA(dObj.calls, b, 'SMB', 'Care', 'FR'));
+        });
+        csvLines.push(row.join(','));
+      });
+
+      let csvContent = "data:text/csv;charset=utf-8," + csvLines.join('\n');
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `brand_tta_matrix_${preset}.csv`);
+      link.setAttribute("download", `telemetry_matrix_${preset}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1357,6 +1463,7 @@
       document.getElementById('customBucketEnd').value = '';
       document.getElementById('customBucketDiv').classList.add('hidden');
       document.getElementById('customBucketDiv').classList.remove('flex');
+      document.getElementById('scheduleDateInput').disabled = false;
       autoFillNumber();
       document.getElementById('newCallModal').classList.remove('hidden');
     }
@@ -1377,29 +1484,37 @@
 
       if (!targetNumber) return alert('Dialing target is mandatory.');
 
-      if (bucketVal === 'custom') {
-        const sh = parseInt(document.getElementById('customBucketStart').value, 10);
-        const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
-        if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
-          return alert('Please enter a valid custom hour slot.');
-        }
-        bucketVal = `${sh},${eh}`;
-      }
-
       let scheduleAtStr = null;
-      if (dateVal && bucketVal) {
-        const [startHour, endHour] = bucketVal.split(',').map(Number);
-        const [year, month, day] = dateVal.split('-').map(Number);
-        const scheduledDate = new Date(year, month - 1, day);
-        
-        const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
-        const randomMinute = Math.floor(Math.random() * 60);
-        scheduledDate.setHours(randomHour, randomMinute, 0, 0);
 
-        if (scheduledDate.getTime() < Date.now()) {
-          return alert('The selected window is in the past. Please enter a future scheduling slot.');
-        }
+      if (['2min', '5min', '10min', '30min'].includes(bucketVal)) {
+        const offsetMins = { '2min': 2, '5min': 5, '10min': 10, '30min': 30 }[bucketVal];
+        const scheduledDate = new Date(Date.now() + offsetMins * 60 * 1000);
         scheduleAtStr = scheduledDate.toISOString();
+        bucketVal = 'custom';
+      } else {
+        if (bucketVal === 'custom') {
+          const sh = parseInt(document.getElementById('customBucketStart').value, 10);
+          const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
+          if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
+            return alert('Please enter a valid custom hour slot.');
+          }
+          bucketVal = `${sh},${eh}`;
+        }
+
+        if (dateVal && bucketVal) {
+          const [startHour, endHour] = bucketVal.split(',').map(Number);
+          const [year, month, day] = dateVal.split('-').map(Number);
+          const scheduledDate = new Date(year, month - 1, day);
+          
+          const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
+          const randomMinute = Math.floor(Math.random() * 60);
+          scheduledDate.setHours(randomHour, randomMinute, 0, 0);
+
+          if (scheduledDate.getTime() < Date.now()) {
+            return alert('The selected window is in the past. Please enter a future scheduling slot.');
+          }
+          scheduleAtStr = scheduledDate.toISOString();
+        }
       }
 
       const btn = document.getElementById('initiateCallBtn');
