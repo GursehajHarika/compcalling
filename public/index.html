@@ -356,7 +356,7 @@
       "Rogers": { "Consumer": "+18887643771", "Small Business": "+18777421888" },
       "Bell": { "Consumer": "+18663011942", "Small Business": "+18884662415" },
       "Telus": { "Consumer": "+18665582273", "Small Business": "+18888112323" },
-      "Videotron": { "Consumer": "+18775120911", "Small Business": "+18883823366" },
+      "Videotron": { "Consumer": "+18775120911", "Small Business": "+18775128590" },
       "Fido": { "Consumer": "+18884813436", "Small Business": "+18884813436" },
       "Virgin Plus": { "Consumer": "+18889992321", "Small Business": "+18889992321" },
       "Koodo": { "Consumer": "+18669956636", "Small Business": "+18669956636" },
@@ -529,6 +529,7 @@
       return 'Consumer';
     }
 
+    // Dynamic brand support translation mapping
     function normalizeLanguage(rawLang) {
       if (!rawLang) return 'EN';
       const l = String(rawLang).trim().toLowerCase();
@@ -657,7 +658,7 @@
       finally { icon.classList.remove('animate-spin'); btn.disabled = false; }
     }
 
-    // New Call Modal
+    // New Call Modal Configuration
     function openNewCallModal() {
       document.getElementById('brandSelectInput').value = 'Rogers';
       document.getElementById('segmentSelectInput').value = 'Consumer';
@@ -837,7 +838,7 @@
       return str;
     }
 
-    // Dynamic Brand x Language Time-to-Agent Matrix Export (No Hardcoded Brands)
+    // Dynamic Brand x Language Time-to-Agent Matrix Export
     function downloadDynamicBrandGrid() {
       const callList = getExportFilteredCalls(true);
       if (callList.length === 0) {
@@ -1147,7 +1148,7 @@
         return true;
       });
 
-      // 1. Render Dashboard Tiles (split dynamically by Brand + Consumer/SMB, Avg TTA by EN/FR, no Avg Call Time)
+      // 1. Render Dashboard Tiles
       const tilesMap = new Map();
       timeframeCalls.forEach(c => {
         if (c.status === 'scheduled') return;
