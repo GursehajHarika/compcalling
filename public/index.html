@@ -33,34 +33,28 @@
           </div>
         </div>
       </div>
-
       <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
         <button onclick="triggerSync()" id="syncBtn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
           <svg id="syncIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span class="hidden sm:inline">Sync History</span>
         </button>
-
         <button onclick="openExportModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 shadow-lg shadow-indigo-900/20 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           <span>Export</span>
         </button>
-
         <button onclick="openNewCallModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-lg shadow-emerald-900/20 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
           <span>New Call</span>
         </button>
-
         <button onclick="openBatchModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-lg shadow-indigo-900/20 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
           <span>Batch Campaign</span>
         </button>
-
         <span id="connectionBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Connecting
         </span>
       </div>
     </header>
-
     <main class="space-y-6">
       
       <!-- Global Timeframe & Segment Filter Bar -->
@@ -81,7 +75,6 @@
           </div>
           <span id="activeRangeLabel" class="text-[11px] font-mono text-slate-400 ml-1"></span>
         </div>
-
         <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
           <select id="filterSegmentInput" onchange="render()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition">
             <option value="">All Segments (Consumer & SMB)</option>
@@ -98,8 +91,8 @@
           <button onclick="resetAllFilters()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition border border-slate-700 shadow-sm">Reset</button>
         </div>
       </div>
-
-      <!-- Dashboard Tiles Section (Brand x Segment, Avg TTA by Language) -->
+      
+      <!-- Dashboard Tiles Section -->
       <section class="space-y-3">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -108,17 +101,15 @@
           </div>
           <span id="tileCountBadge" class="text-[11px] font-mono text-slate-400"></span>
         </div>
-
         <div id="brandTilesEmpty" class="bg-slate-900/30 border border-slate-800/70 rounded-xl p-8 text-center">
           <p class="text-xs text-slate-400" id="brandTilesEmptyText">No completed or active calls with Brand data in the selected timeframe.</p>
           <button id="switchAllTimeHintBtn" onclick="setTimeframe('all')" class="hidden mt-3 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition">
             View All Historical Calls
           </button>
         </div>
-
-        <div id="brandSummaryContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 hidden"></div>
+        <div id="brandSummaryContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-6 hidden"></div>
       </section>
-
+      
       <!-- All Raw Data Section -->
       <section class="space-y-3 pt-2">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
@@ -133,7 +124,6 @@
             <button onclick="setFilter('past')" id="btnFilterPast" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition">Past (<span id="countPast">0</span>)</button>
           </div>
         </div>
-
         <div class="bg-slate-900/40 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden w-full backdrop-blur-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs min-w-[700px] lg:min-w-full">
@@ -161,8 +151,8 @@
       </section>
     </main>
   </div>
-
-  <!-- Export Modal (Dynamic Timeframe Selection) -->
+  
+  <!-- Export Modal -->
   <div id="exportModal" class="fixed inset-0 z-50 overflow-hidden hidden" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeExportModal()"></div>
     <div class="fixed inset-0 flex items-center justify-center p-4">
@@ -174,7 +164,6 @@
           </div>
           <button onclick="closeExportModal()" class="text-slate-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
-
         <div class="p-5 space-y-4">
           <div>
             <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Select Timeframe</label>
@@ -186,7 +175,6 @@
               <option value="all">All Available History</option>
             </select>
           </div>
-
           <div id="exportCustomDatesDiv" class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
@@ -197,12 +185,10 @@
               <input type="date" id="exportEndDate" onchange="updateExportPreviewCount()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500" style="color-scheme: dark;">
             </div>
           </div>
-
           <div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 flex items-center justify-between">
             <span>Matching calls in timeframe:</span>
             <span id="exportMatchCount" class="font-mono font-bold text-indigo-400">0 calls</span>
           </div>
-
           <div class="space-y-2.5 pt-1">
             <button type="button" onclick="downloadDynamicBrandGrid()" class="w-full flex items-center justify-between px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-indigo-900/20 transition">
               <span class="flex flex-col text-left">
@@ -211,7 +197,6 @@
               </span>
               <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </button>
-
             <button type="button" onclick="downloadRawCSV()" class="w-full flex items-center justify-between px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition">
               <span class="flex flex-col text-left">
                 <span>Export Raw Call Data (CSV)</span>
@@ -224,7 +209,7 @@
       </div>
     </div>
   </div>
-
+  
   <!-- New Call Modal -->
   <div id="newCallModal" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeNewCallModal()"></div>
@@ -259,17 +244,14 @@
               </select>
             </div>
           </div>
-
           <div id="customBrandNameDiv" class="hidden">
             <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Custom Brand Name</label>
             <input type="text" id="customBrandNameInput" placeholder="e.g. Fizz, Chatr, Eastlink..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
           </div>
-
           <div>
             <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Dialing Target (Auto-filled)</label>
             <input type="text" id="targetNumberInput" placeholder="+1 (800) 555-1234" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
           </div>
-
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">AI Use Case</label>
@@ -311,10 +293,8 @@
                 <input type="number" id="customBucketEnd" min="0" max="24" placeholder="e.g. 16" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
               </div>
             </div>
-
             <p class="text-[10px] text-amber-500/80 mt-2 font-medium">Smart conflict detection will block identical scheduled overlays.</p>
           </div>
-
         </div>
         <div class="bg-slate-950/50 px-5 py-4 flex justify-end gap-3 border-t border-slate-800">
           <button type="button" onclick="closeNewCallModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Cancel</button>
@@ -425,11 +405,9 @@
       document.getElementById('batchCustomBucketDiv').classList.remove('flex');
       document.getElementById('batchModal').classList.remove('hidden');
     }
-
     function closeBatchModal() {
       document.getElementById('batchModal').classList.add('hidden');
     }
-
     function handleBatchBucketChange() {
       const val = document.getElementById('batchBucketInput').value;
       const div = document.getElementById('batchCustomBucketDiv');
@@ -441,12 +419,10 @@
         div.classList.remove('flex');
       }
     }
-
     async function initiateBatchCampaign() {
       const brand = document.getElementById('batchBrandSelect').value;
       const dateVal = document.getElementById('batchDateInput').value;
       let bucketVal = document.getElementById('batchBucketInput').value;
-
       if (bucketVal === 'custom') {
         const sh = parseInt(document.getElementById('batchCustomBucketStart').value, 10);
         const eh = parseInt(document.getElementById('batchCustomBucketEnd').value, 10);
@@ -455,7 +431,6 @@
         }
         bucketVal = `${sh},${eh}`;
       }
-
       let scheduleAtStr = null;
       if (dateVal && bucketVal) {
         const [startHour, endHour] = bucketVal.split(',').map(Number);
@@ -464,30 +439,24 @@
         const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
         const randomMinute = Math.floor(Math.random() * 60);
         scheduledDate.setHours(randomHour, randomMinute, 0, 0);
-
         if (scheduledDate.getTime() < Date.now()) {
           return alert('The selected window has already passed. Please select a future date/time.');
         }
         scheduleAtStr = scheduledDate.toISOString();
       }
-
       const btn = document.getElementById('dispatchBatchBtn');
       btn.disabled = true;
       btn.innerHTML = 'Dispatching...';
-
       const segments = ['Consumer', 'Small Business'];
       const useCases = ['Sales', 'Billing'];
       const languages = ['English', 'French'];
-
       let successCount = 0;
       let failCount = 0;
-
       for (const segment of segments) {
         for (const useCase of useCases) {
           for (const language of languages) {
             const targetNumber = BRAND_NUMBERS[brand]?.[segment];
             if (!targetNumber) continue;
-
             try {
               const payload = {
                 targetNumber,
@@ -500,13 +469,11 @@
                 payload.scheduleAt = scheduleAtStr;
                 payload.scheduleBucket = bucketVal;
               }
-
               const res = await fetch('/api/calls/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-
               if (res.ok) successCount++;
               else failCount++;
             } catch (err) {
@@ -515,7 +482,6 @@
           }
         }
       }
-
       alert(`Campaign launch complete! Successfully dispatched: ${successCount} combinations. Failed: ${failCount}.`);
       closeBatchModal();
       setFilter(scheduleAtStr ? 'scheduled' : 'live');
@@ -539,7 +505,6 @@
     const connectionBadge = document.getElementById('connectionBadge');
     const brandSummaryContainer = document.getElementById('brandSummaryContainer');
     const brandTilesEmpty = document.getElementById('brandTilesEmpty');
-
     const expandedRows = new Set();
     const terminatingCalls = new Set();
     let currentFilter = 'all';
@@ -564,7 +529,6 @@
     function getPresetBounds(preset, customStartVal, customEndVal) {
       const now = new Date();
       if (preset === 'all') return { start: null, end: null, label: 'All Time' };
-
       if (preset === 'week') {
         const day = now.getDay(); // 0 = Sun, 1 = Mon ...
         const diffToMon = day === 0 ? -6 : 1 - day;
@@ -573,21 +537,18 @@
         const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return { start: mon, end: sun, label: `${fmt(mon)} – ${fmt(sun)}` };
       }
-
       if (preset === '7days') {
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
         const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return { start, end, label: `${fmt(start)} – ${fmt(end)}` };
       }
-
       if (preset === 'month') {
         const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return { start, end, label: `${fmt(start)} – ${fmt(end)}` };
       }
-
       if (preset === 'custom') {
         let start = null, end = null;
         if (customStartVal) {
@@ -601,7 +562,6 @@
         const label = `${customStartVal || '...'} to ${customEndVal || '...'}`;
         return { start, end, label };
       }
-
       return { start: null, end: null, label: '' };
     }
 
@@ -615,7 +575,6 @@
             : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
         }
       });
-
       const customDiv = document.getElementById('customTimeframeInputs');
       if (tf === 'custom') {
         customDiv.classList.remove('hidden');
@@ -665,7 +624,6 @@
       const secMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|secs|second|seconds)\b/);
       if (secMatch) { secs += parseFloat(secMatch[1]); found = true; }
       if (found) return Math.round(secs);
-
       const numMatch = s.match(/^(\d+(?:\.\d+)?)$/);
       if (numMatch) return Math.round(parseFloat(numMatch[1]));
       return null;
@@ -691,6 +649,7 @@
       return b;
     }
 
+    // Normalized lookup helper for Segment
     function normalizeSegment(rawSeg) {
       if (!rawSeg) return 'Consumer';
       const s = String(rawSeg).trim().toLowerCase();
@@ -747,7 +706,6 @@
       const segment = document.getElementById('segmentSelectInput').value;
       const targetInput = document.getElementById('targetNumberInput');
       const customBrandDiv = document.getElementById('customBrandNameDiv');
-
       if (brand === 'Other') {
         customBrandDiv.classList.remove('hidden');
         targetInput.value = '';
@@ -827,443 +785,6 @@
       finally { icon.classList.remove('animate-spin'); btn.disabled = false; }
     }
 
-    // New Call Modal
-    function openNewCallModal() {
-      document.getElementById('brandSelectInput').value = 'Rogers';
-      document.getElementById('segmentSelectInput').value = 'Consumer';
-      document.getElementById('useCaseSelectInput').value = 'Billing';
-      document.getElementById('languageSelectInput').value = 'English';
-      document.getElementById('customBrandNameInput').value = '';
-      autoFillNumber();
-      document.getElementById('scheduleDateInput').value = '';
-      document.getElementById('scheduleBucketInput').value = '';
-      document.getElementById('customBucketStart').value = '';
-      document.getElementById('customBucketEnd').value = '';
-      document.getElementById('customBucketDiv').classList.add('hidden');
-      document.getElementById('customBucketDiv').classList.remove('flex');
-      document.getElementById('newCallModal').classList.remove('hidden');
-    }
-
-    function closeNewCallModal() {
-      document.getElementById('newCallModal').classList.add('hidden');
-    }
-
-    async function initiateNewCall() {
-      const input = document.getElementById('targetNumberInput').value.trim();
-      const rawBrand = document.getElementById('brandSelectInput').value;
-      const customBrand = document.getElementById('customBrandNameInput').value.trim();
-      const brandVal = rawBrand === 'Other' ? (customBrand || 'Custom') : rawBrand;
-      const segmentVal = document.getElementById('segmentSelectInput').value;
-      const useCaseVal = document.getElementById('useCaseSelectInput').value;
-      const languageVal = document.getElementById('languageSelectInput').value;
-
-      const dateVal = document.getElementById('scheduleDateInput').value;
-      let bucketVal = document.getElementById('scheduleBucketInput').value;
-
-      if (!input) return alert('Please ensure a target phone number is provided.');
-
-      if (bucketVal === 'custom') {
-        const sh = parseInt(document.getElementById('customBucketStart').value, 10);
-        const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
-        if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
-          return alert('Please enter a valid custom time window (Start Hour must be less than End Hour).');
-        }
-        bucketVal = `${sh},${eh}`;
-      }
-
-      let scheduleAtStr = null;
-      if (dateVal && bucketVal) {
-        const [startHour, endHour] = bucketVal.split(',').map(Number);
-        const [year, month, day] = dateVal.split('-').map(Number);
-        const scheduledDate = new Date(year, month - 1, day);
-        const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
-        const randomMinute = Math.floor(Math.random() * 60);
-        scheduledDate.setHours(randomHour, randomMinute, 0, 0);
-
-        if (scheduledDate.getTime() < Date.now()) {
-          return alert('The selected time window has already passed for today. Please pick a future time or date.');
-        }
-        scheduleAtStr = scheduledDate.toISOString();
-      } else if (dateVal || bucketVal) {
-        return alert('Please select both a date and a time window, or leave both blank to dial immediately.');
-      }
-
-      const btn = document.getElementById('initiateCallBtn');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-      btn.disabled = true;
-
-      try {
-        const payload = {
-          targetNumber: input,
-          brand: brandVal,
-          segment: segmentVal,
-          useCase: useCaseVal,
-          language: languageVal
-        };
-        if (scheduleAtStr) {
-          payload.scheduleAt = scheduleAtStr;
-          payload.scheduleBucket = bucketVal;
-        }
-
-        const res = await fetch('/api/calls/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          alert(`Schedule Alert: ${err.error || err.message}`);
-        } else {
-          const data = await res.json();
-          closeNewCallModal();
-
-          if (data.scheduled) {
-            setFilter('scheduled');
-          } else {
-            setFilter('live');
-            let attempts = 0;
-            const checkExist = setInterval(() => {
-              if (calls.has(data.call.id)) { clearInterval(checkExist); openTranscript(data.call.id); }
-              if (++attempts > 20) clearInterval(checkExist);
-            }, 500);
-          }
-        }
-      } catch (e) {
-        alert(`Error: ${e.message}`);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    }
-
-    // Export Modal & Dynamic Exports
-    function openExportModal() {
-      const presetSelect = document.getElementById('exportPresetSelect');
-      presetSelect.value = currentTimeframe;
-      handleExportPresetChange();
-      document.getElementById('exportModal').classList.remove('hidden');
-    }
-
-    function closeExportModal() {
-      document.getElementById('exportModal').classList.add('hidden');
-    }
-
-    function handleExportPresetChange() {
-      const preset = document.getElementById('exportPresetSelect').value;
-      const startInput = document.getElementById('exportStartDate');
-      const endInput = document.getElementById('exportEndDate');
-      const datesDiv = document.getElementById('exportCustomDatesDiv');
-
-      if (preset === 'all') {
-        datesDiv.classList.add('hidden');
-      } else {
-        datesDiv.classList.remove('hidden');
-        if (preset === 'custom') {
-          startInput.disabled = false;
-          endInput.disabled = false;
-          if (!startInput.value) {
-            const wk = getPresetBounds('week');
-            startInput.value = toLocalYMD(wk.start);
-            endInput.value = toLocalYMD(wk.end);
-          }
-        } else {
-          const bounds = getPresetBounds(preset);
-          startInput.value = bounds.start ? toLocalYMD(bounds.start) : '';
-          endInput.value = bounds.end ? toLocalYMD(bounds.end) : '';
-          startInput.disabled = true;
-          endInput.disabled = true;
-        }
-      }
-      updateExportPreviewCount();
-    }
-
-    function getExportFilteredCalls(excludeScheduled = true) {
-      const preset = document.getElementById('exportPresetSelect').value;
-      const startVal = document.getElementById('exportStartDate').value;
-      const endVal = document.getElementById('exportEndDate').value;
-      const bounds = getPresetBounds(preset === 'all' ? 'all' : 'custom', startVal, endVal);
-
-      return Array.from(calls.values()).filter(c => {
-        if (excludeScheduled && c.status === 'scheduled') return false;
-        const t = new Date(c.startedAt).getTime();
-        if (bounds.start && t < bounds.start.getTime()) return false;
-        if (bounds.end && t > bounds.end.getTime()) return false;
-        return true;
-      }).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
-    }
-
-    function updateExportPreviewCount() {
-      const matched = getExportFilteredCalls(true);
-      document.getElementById('exportMatchCount').textContent = `${matched.length} call${matched.length === 1 ? '' : 's'}`;
-    }
-
-    function csvEscape(val) {
-      const str = String(val === null || val === undefined ? '' : val).replace(/\n/g, ' ').replace(/—/g, '-');
-      if (str.includes(',') || str.includes('"')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    }
-
-    // Dynamic Brand x Language Time-to-Agent Matrix Export
-    function downloadDynamicBrandGrid() {
-      const callList = getExportFilteredCalls(true);
-      if (callList.length === 0) {
-        return alert('No completed or live calls found in the selected timeframe.');
-      }
-
-      const brands = ['Bell', 'Rogers', 'Telus', 'Videotron', 'Virgin', 'Fido', 'Koodo'];
-      const brandStyles = {
-        'Bell': { bg: '#0f4c81', fg: '#ffffff' },
-        'Rogers': { bg: '#e0112a', fg: '#ffffff' },
-        'Telus': { bg: '#4a2574', fg: '#ffffff' },
-        'Videotron': { bg: '#fff200', fg: '#000000' },
-        'Virgin': { bg: '#e31837', fg: '#ffffff' },
-        'Fido': { bg: '#fdb813', fg: '#000000' },
-        'Koodo': { bg: '#00a6e0', fg: '#ffffff' }
-      };
-
-      // Group calls by date (YYYY-MM-DD)
-      const dateGroups = {};
-      callList.forEach(c => {
-        const d = new Date(c.startedAt);
-        const ymd = toLocalYMD(d);
-        if (!dateGroups[ymd]) {
-          dateGroups[ymd] = {
-            ymd,
-            dow: d.toLocaleDateString('en-US', { weekday: 'short' }),
-            dateDisplay: `${String(d.getDate()).padStart(2, '0')}-${d.toLocaleDateString('en-US', { month: 'short' })}`,
-            calls: []
-          };
-        }
-        dateGroups[ymd].calls.push(c);
-      });
-
-      const sortedDates = Object.values(dateGroups).sort((a, b) => a.ymd.localeCompare(b.ymd));
-
-      // Helper to compute average TTA for a filter
-      function getAvgTTA(callsForDate, brand, segment, useCase, lang) {
-        const matches = callsForDate.filter(c => {
-          const s = c.structuredOutputs || {};
-          const cBrand = normalizeBrand(s.brand);
-          const cSeg = normalizeSegment(s.segment);
-          const cUseCase = normalizeUseCase(s.useCase);
-          const cLang = normalizeLanguage(s.language);
-
-          return (cBrand && cBrand.toLowerCase() === brand.toLowerCase()) &&
-                 (cSeg === segment) &&
-                 (useCase === 'Care & Loyalty' ? (cUseCase === 'Billing' || cUseCase === 'General' || cUseCase === 'Care') : (cUseCase === useCase)) &&
-                 (cLang === lang);
-        });
-
-        const vals = matches.map(c => parseToSec(c.structuredOutputs?.timeToAgent)).filter(v => v !== null);
-        if (vals.length === 0) return '-';
-        return Math.round(vals.reduce((sum, v) => sum + v, 0) / vals.length);
-      }
-
-      // Generate fully-styled HTML that Excel opens beautifully
-      let htmlString = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <style>
-            table { border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 11px; }
-            th, td { border: 1px solid #cccccc; text-align: center; padding: 6px; }
-            .section-header { font-size: 14px; font-weight: bold; background-color: #f2f2f2; text-align: center; padding: 10px; }
-            .header-label { font-weight: bold; background-color: #e6e6e6; }
-            .brand-header { font-weight: bold; color: white; }
-          </style>
-        </head>
-        <body>
-      `;
-
-      // 1. Consumer - Sales Section
-      htmlString += `
-        <table>
-          <tr><td colspan="${2 + brands.length * 2}" class="section-header">Consumer - Sales</td></tr>
-          <tr>
-            <th rowspan="2" class="header-label">DoW</th>
-            <th rowspan="2" class="header-label">Date</th>
-      `;
-      brands.forEach(b => {
-        const style = brandStyles[b] || { bg: '#808080', fg: '#ffffff' };
-        htmlString += `<th colspan="2" style="background-color: ${style.bg}; color: ${style.fg}; font-weight: bold;">${b}</th>`;
-      });
-      htmlString += `</tr><tr>`;
-      brands.forEach(() => {
-        htmlString += `<th class="header-label">EN</th><th class="header-label">FR</th>`;
-      });
-      htmlString += `</tr>`;
-
-      sortedDates.forEach(dObj => {
-        htmlString += `<tr><td>${dObj.dow}</td><td>${dObj.dateDisplay}</td>`;
-        brands.forEach(b => {
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'Consumer', 'Sales', 'EN')}</td>`;
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'Consumer', 'Sales', 'FR')}</td>`;
-        });
-        htmlString += `</tr>`;
-      });
-      htmlString += `</table><br><br>`;
-
-      // 2. Consumer - Care & Loyalty Section
-      htmlString += `
-        <table>
-          <tr><td colspan="${2 + brands.length * 2}" class="section-header">Consumer - Care & Loyalty</td></tr>
-          <tr>
-            <th rowspan="2" class="header-label">DoW</th>
-            <th rowspan="2" class="header-label">Date</th>
-      `;
-      brands.forEach(b => {
-        const style = brandStyles[b] || { bg: '#808080', fg: '#ffffff' };
-        htmlString += `<th colspan="2" style="background-color: ${style.bg}; color: ${style.fg}; font-weight: bold;">${b}</th>`;
-      });
-      htmlString += `</tr><tr>`;
-      brands.forEach(() => {
-        htmlString += `<th class="header-label">EN</th><th class="header-label">FR</th>`;
-      });
-      htmlString += `</tr>`;
-
-      sortedDates.forEach(dObj => {
-        htmlString += `<tr><td>${dObj.dow}</td><td>${dObj.dateDisplay}</td>`;
-        brands.forEach(b => {
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'Consumer', 'Care & Loyalty', 'EN')}</td>`;
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'Consumer', 'Care & Loyalty', 'FR')}</td>`;
-        });
-        htmlString += `</tr>`;
-      });
-      htmlString += `</table><br><br>`;
-
-      // 3. Business - Sales, Care & Loyalty Section
-      const bizBrands = ['Bell', 'Rogers', 'Telus', 'Videotron'];
-      htmlString += `
-        <table>
-          <tr><td colspan="${2 + bizBrands.length * 4}" class="section-header">Business - Sales, Care & Loyalty</td></tr>
-          <tr>
-            <th rowspan="3" class="header-label">DoW</th>
-            <th rowspan="3" class="header-label">Date</th>
-      `;
-      bizBrands.forEach(b => {
-        const style = brandStyles[b] || { bg: '#808080', fg: '#ffffff' };
-        htmlString += `<th colspan="4" style="background-color: ${style.bg}; color: ${style.fg}; font-weight: bold;">${b}</th>`;
-      });
-      htmlString += `</tr><tr>`;
-      bizBrands.forEach(() => {
-        htmlString += `<th colspan="2" class="header-label">Sales</th><th colspan="2" class="header-label">Care/Loyalty</th>`;
-      });
-      htmlString += `</tr><tr>`;
-      bizBrands.forEach(() => {
-        htmlString += `<th class="header-label">EN</th><th class="header-label">FR</th><th class="header-label">EN</th><th class="header-label">FR</th>`;
-      });
-      htmlString += `</tr>`;
-
-      sortedDates.forEach(dObj => {
-        htmlString += `<tr><td>${dObj.dow}</td><td>${dObj.dateDisplay}</td>`;
-        bizBrands.forEach(b => {
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'SMB', 'Sales', 'EN')}</td>`;
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'SMB', 'Sales', 'FR')}</td>`;
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'SMB', 'Care & Loyalty', 'EN')}</td>`;
-          htmlString += `<td>${getAvgTTA(dObj.calls, b, 'SMB', 'Care & Loyalty', 'FR')}</td>`;
-        });
-        htmlString += `</tr>`;
-      });
-      htmlString += `</table>`;
-
-      htmlString += `</body></html>`;
-
-      const blob = new Blob([htmlString], { type: 'application/vnd.ms-excel' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `CompCalling_Brand_Grid_${toLocalYMD(new Date())}.xls`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      closeExportModal();
-    }
-
-    // Raw Call Data CSV Export for Selected Timeframe
-    function downloadRawCSV() {
-      const callList = getExportFilteredCalls(false);
-      if (callList.length === 0) return alert('No calls found in the selected timeframe.');
-
-      const headers = [
-        'Call ID', 'Status', 'Brand', 'Segment', 'Time Slot', 'Use Case', 'Language',
-        'Target Number', 'Reported Wait', 'Time to Agent', 'Time to Agent (Sec)',
-        'Duration (Sec)', 'System Detected', 'HOOPs', 'Customer Experience', 'IVR Options',
-        'Start Time', 'End Time'
-      ];
-      const csvRows = [headers.join(',')];
-
-      callList.forEach(c => {
-        const s = c.structuredOutputs || {};
-        const durationSec = c.status === 'scheduled'
-          ? 0
-          : Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
-        const ttaSec = parseToSec(s.timeToAgent);
-        const timeSlot = c.status === 'scheduled' ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
-        const esc = (str) => `"${String(str === null || str === undefined ? '' : str).replace(/"/g, '""').replace(/\n/g, ' ').replace(/—/g, '-')}"`;
-
-        const row = [
-          esc(c.id),
-          esc(c.status),
-          esc(normalizeBrand(s.brand) || s.brand || ''),
-          esc(normalizeSegment(s.segment)),
-          esc(timeSlot),
-          esc(normalizeUseCase(s.useCase)),
-          esc(normalizeLanguage(s.language)),
-          esc(c.customerNumber),
-          esc(s.waitTimes),
-          esc(s.timeToAgent),
-          ttaSec !== null ? ttaSec : '',
-          durationSec,
-          esc(s.systemUsed),
-          esc(s.hoops),
-          esc(s.cxToAgent),
-          esc(s.ivrOptions),
-          esc(new Date(c.startedAt).toISOString()),
-          esc(c.endedAt ? new Date(c.endedAt).toISOString() : '')
-        ];
-        csvRows.push(row.join(','));
-      });
-
-      const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `CompCalling_Raw_${toLocalYMD(new Date())}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      closeExportModal();
-    }
-
-    async function endCall(callId, event) {
-      event.stopPropagation();
-      if (!confirm(`Are you sure you want to manually terminate session ID:\n${callId}`)) return;
-      terminatingCalls.add(callId);
-      render();
-      try {
-        await fetch(`/api/calls/${callId}/end`, { method: 'POST' });
-      } catch (e) { alert('Network error'); }
-      finally { terminatingCalls.delete(callId); render(); }
-    }
-
-    async function cancelScheduledCall(callId, event) {
-      event.stopPropagation();
-      if (!confirm('Cancel this scheduled automated dial?')) return;
-      try { await fetch(`/api/calls/schedule/${callId}`, { method: 'DELETE' }); } catch (e) {}
-    }
-
-    function setFilter(filter) {
-      currentFilter = filter;
-      ['all', 'live', 'scheduled', 'past'].forEach(f => {
-        const btn = document.getElementById('btnFilter' + f.charAt(0).toUpperCase() + f.slice(1));
-        btn.className = f === filter
-          ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm'
-          : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
-      });
-      render();
-    }
-
     // Toggle inspecting detailed info rows
     function toggleRow(id) {
       expandedRows.has(id) ? expandedRows.delete(id) : expandedRows.add(id);
@@ -1306,12 +827,10 @@
       const feed = document.getElementById('transcriptFeed');
       const segments = (call.transcript || []).filter(seg => seg.role !== 'system');
       document.getElementById('drawerStats').textContent = `${segments.length} message segment${segments.length === 1 ? '' : 's'}`;
-
       if (segments.length === 0) {
         feed.innerHTML = `<div class="text-center py-12 text-slate-500">No speech transcribed yet.<br><span class="text-[11px] text-slate-600">Audio will appear here as both sides speak.</span></div>`;
         return;
       }
-
       const brandName = normalizeBrand(call.structuredOutputs?.brand) || 'Call Center';
       feed.innerHTML = segments.map(seg => {
         const isOurAI = seg.role === 'assistant' || seg.role === 'bot';
@@ -1326,21 +845,20 @@
 
     function render() {
       const allCallsSorted = Array.from(calls.values()).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
-
+      
       // Apply Timeframe + Segment + Time Slot filters first
       const dashStart = document.getElementById('dashStartDate').value;
       const dashEnd = document.getElementById('dashEndDate').value;
       const bounds = getPresetBounds(currentTimeframe, dashStart, dashEnd);
       document.getElementById('activeRangeLabel').textContent = bounds.label ? `(${bounds.label})` : '';
-
+      
       const segmentFilterVal = document.getElementById('filterSegmentInput').value;
       const bucketFilterVal = document.getElementById('filterBucketInput').value;
-
+      
       const timeframeCalls = allCallsSorted.filter(c => {
         const cTime = new Date(c.startedAt).getTime();
         if (bounds.start && cTime < bounds.start.getTime()) return false;
         if (bounds.end && cTime > bounds.end.getTime()) return false;
-
         if (segmentFilterVal) {
           const seg = normalizeSegment(c.structuredOutputs?.segment);
           if (seg !== segmentFilterVal) return false;
@@ -1352,26 +870,24 @@
         return true;
       });
 
-      // 1. Render Dashboard Tiles
+      // 1. Render Dashboard Tiles (Consolidated on a Brand level - Rogers, Telus, Videotron, Koodo, Fido - with side-by-side Consumer and SMB sections)
       const tilesMap = new Map();
+      const allowedBrands = ['Rogers', 'Telus', 'Videotron', 'Koodo', 'Fido'];
       timeframeCalls.forEach(c => {
         if (c.status === 'scheduled') return;
         const s = c.structuredOutputs || {};
         const brand = normalizeBrand(s.brand);
-        if (!brand) return;
-
-        const segment = normalizeSegment(s.segment);
-        const lang = normalizeLanguage(s.language);
-        const tileKey = `${brand}||${segment}`;
-
+        if (!brand || !allowedBrands.some(ab => ab.toLowerCase() === brand.toLowerCase())) return;
+        const segment = normalizeSegment(s.segment); // 'Consumer' or 'SMB'
+        const lang = normalizeLanguage(s.language);   // 'EN' or 'FR'
+        const tileKey = allowedBrands.find(ab => ab.toLowerCase() === brand.toLowerCase());
         if (!tilesMap.has(tileKey)) {
           tilesMap.set(tileKey, {
-            brand,
-            segment,
-            enTTAs: [],
-            frTTAs: [],
-            enCalls: 0,
-            frCalls: 0,
+            brand: tileKey,
+            consumerEnTTAs: [],
+            consumerFrTTAs: [],
+            smbEnTTAs: [],
+            smbFrTTAs: [],
             totalCalls: 0,
             isLive: false,
             latestLiveCall: null
@@ -1379,19 +895,19 @@
         }
         const tile = tilesMap.get(tileKey);
         tile.totalCalls++;
-
         if (['in-progress', 'ringing', 'queued'].includes(c.status)) {
           tile.isLive = true;
           if (!tile.latestLiveCall) tile.latestLiveCall = c;
         }
-
         const ttaSec = parseToSec(s.timeToAgent);
-        if (lang === 'FR') {
-          tile.frCalls++;
-          if (ttaSec !== null) tile.frTTAs.push(ttaSec);
-        } else {
-          tile.enCalls++;
-          if (ttaSec !== null) tile.enTTAs.push(ttaSec);
+        if (ttaSec !== null) {
+          if (segment === 'Consumer') {
+            if (lang === 'FR') tile.consumerFrTTAs.push(ttaSec);
+            else tile.consumerEnTTAs.push(ttaSec);
+          } else {
+            if (lang === 'FR') tile.smbFrTTAs.push(ttaSec);
+            else tile.smbEnTTAs.push(ttaSec);
+          }
         }
       });
 
@@ -1400,7 +916,6 @@
         brandSummaryContainer.classList.add('hidden');
         brandTilesEmpty.classList.remove('hidden');
         document.getElementById('tileCountBadge').textContent = '0 tiles';
-
         const hintBtn = document.getElementById('switchAllTimeHintBtn');
         if (currentTimeframe !== 'all' && allCallsSorted.some(c => c.status !== 'scheduled')) {
           hintBtn.classList.remove('hidden');
@@ -1411,65 +926,91 @@
       } else {
         brandTilesEmpty.classList.add('hidden');
         brandSummaryContainer.classList.remove('hidden');
-
-        const sortedTiles = Array.from(tilesMap.values()).sort((a, b) =>
-          a.brand.localeCompare(b.brand) || a.segment.localeCompare(b.segment)
-        );
-        document.getElementById('tileCountBadge').textContent = `${sortedTiles.length} tile${sortedTiles.length === 1 ? '' : 's'}`;
-
+        
+        // Order specifically as Rogers, Telus, Videotron, Koodo, Fido
+        const sortedTiles = allowedBrands
+          .filter(b => tilesMap.has(b))
+          .map(b => tilesMap.get(b));
+          
+        document.getElementById('tileCountBadge').textContent = `${sortedTiles.length} brand tile${sortedTiles.length === 1 ? '' : 's'}`;
         brandSummaryContainer.innerHTML = sortedTiles.map(tile => {
-          const enAvgSec = tile.enTTAs.length > 0
-            ? Math.round(tile.enTTAs.reduce((sum, v) => sum + v, 0) / tile.enTTAs.length)
-            : null;
-          const frAvgSec = tile.frTTAs.length > 0
-            ? Math.round(tile.frTTAs.reduce((sum, v) => sum + v, 0) / tile.frTTAs.length)
-            : null;
-
-          const segBadgeClass = tile.segment === 'SMB'
-            ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-            : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
-
+          const cEnAvg = tile.consumerEnTTAs.length > 0 ? Math.round(tile.consumerEnTTAs.reduce((s, v) => s + v, 0) / tile.consumerEnTTAs.length) : null;
+          const cFrAvg = tile.consumerFrTTAs.length > 0 ? Math.round(tile.consumerFrTTAs.reduce((s, v) => s + v, 0) / tile.consumerFrTTAs.length) : null;
+          const sEnAvg = tile.smbEnTTAs.length > 0 ? Math.round(tile.smbEnTTAs.reduce((s, v) => s + v, 0) / tile.smbEnTTAs.length) : null;
+          const sFrAvg = tile.smbFrTTAs.length > 0 ? Math.round(tile.smbFrTTAs.reduce((s, v) => s + v, 0) / tile.smbFrTTAs.length) : null;
+          
           const statusDot = tile.isLive
             ? `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
             : `<span class="h-2 w-2 rounded-full bg-slate-600"></span>`;
-
+            
           const tickMsg = (tile.latestLiveCall?.transcript && tile.latestLiveCall.transcript.length > 0)
             ? tile.latestLiveCall.transcript[tile.latestLiveCall.transcript.length - 1]
             : null;
-
+            
           return `
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-3.5 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
-              <div class="flex items-start justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between gap-4 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700">
+              <!-- Top Row: Brand & Combined Call Count -->
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div class="flex items-center gap-2">
                   ${statusDot}
-                  <h3 class="text-sm font-bold text-white uppercase tracking-wide truncate">${tile.brand}</h3>
+                  <h3 class="text-base font-extrabold text-white uppercase tracking-wider">${tile.brand}</h3>
                 </div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-semibold border ${segBadgeClass}">${tile.segment}</span>
-                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${tile.totalCalls} call${tile.totalCalls === 1 ? '' : 's'}</span>
+                <span class="px-2.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${tile.totalCalls} call${tile.totalCalls === 1 ? '' : 's'}</span>
+              </div>
+              
+              <!-- Two Columns: Consumer vs SMB side by side -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <!-- Consumer Column -->
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-indigo-400 uppercase tracking-widest">Consumer</span>
+                    <span class="text-[10px] text-slate-500 font-mono">n=${tile.consumerEnTTAs.length + tile.consumerFrTTAs.length}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                      <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
+                        <span>EN AVG</span>
+                        <span class="text-slate-500">n=${tile.consumerEnTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(cEnAvg)}</div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                      <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
+                        <span>FR AVG</span>
+                        <span class="text-slate-500">n=${tile.consumerFrTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(cFrAvg)}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- SMB Column -->
+                <div class="space-y-2 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-4 pt-3 md:pt-0">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-purple-400 uppercase tracking-widest">Small Business</span>
+                    <span class="text-[10px] text-slate-500 font-mono">n=${tile.smbEnTTAs.length + tile.smbFrTTAs.length}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                      <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
+                        <span>EN AVG</span>
+                        <span class="text-slate-500">n=${tile.smbEnTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(sEnAvg)}</div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
+                      <div class="flex items-center justify-between text-[9px] uppercase font-semibold text-slate-400">
+                        <span>FR AVG</span>
+                        <span class="text-slate-500">n=${tile.smbFrTTAs.length}</span>
+                      </div>
+                      <div class="text-sm font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(sFrAvg)}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div class="grid grid-cols-2 gap-2.5">
-                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">EN Avg TTA</span>
-                    <span class="text-[10px] font-mono text-slate-500">n=${tile.enTTAs.length}</span>
-                  </div>
-                  <div class="text-base font-bold text-amber-300 font-mono mt-1">${formatSecDisplay(enAvgSec)}</div>
-                </div>
-
-                <div class="bg-slate-950/70 border border-slate-800/90 rounded-lg p-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">FR Avg TTA</span>
-                    <span class="text-[10px] font-mono text-slate-500">n=${tile.frTTAs.length}</span>
-                  </div>
-                  <div class="text-base font-bold text-cyan-300 font-mono mt-1">${formatSecDisplay(frAvgSec)}</div>
-                </div>
-              </div>
-
+              
               ${tile.isLive ? `
-                <div class="pt-2.5 border-t border-slate-800/80">
+                <div class="pt-2 border-t border-slate-800/80">
                   <div class="text-[9px] uppercase font-semibold text-emerald-400 tracking-wider flex items-center gap-1.5 mb-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live Audio Feed
                   </div>
@@ -1482,150 +1023,423 @@
         }).join('');
       }
 
-      // 2. Render All Raw Call Data Table below tiles
-      const liveCalls = timeframeCalls.filter(c => ['in-progress', 'ringing', 'queued'].includes(c.status));
-      const scheduledCalls = timeframeCalls.filter(c => c.status === 'scheduled');
-      const pastCalls = timeframeCalls.filter(c => !['in-progress', 'ringing', 'queued', 'scheduled'].includes(c.status));
+      // 2. Render All Raw Call Data Table
+      const filterCalls = timeframeCalls.filter(c => {
+        if (currentFilter === 'all') return true;
+        if (currentFilter === 'live') return ['in-progress', 'ringing', 'queued'].includes(c.status);
+        if (currentFilter === 'scheduled') return c.status === 'scheduled';
+        if (currentFilter === 'past') return c.status === 'ended';
+        return true;
+      });
 
+      // Update Sub-filters counters
       document.getElementById('countAll').textContent = timeframeCalls.length;
-      document.getElementById('countLive').textContent = liveCalls.length;
-      document.getElementById('countScheduled').textContent = scheduledCalls.length;
-      document.getElementById('countPast').textContent = pastCalls.length;
+      document.getElementById('countLive').textContent = timeframeCalls.filter(c => ['in-progress', 'ringing', 'queued'].includes(c.status)).length;
+      document.getElementById('countScheduled').textContent = timeframeCalls.filter(c => c.status === 'scheduled').length;
+      document.getElementById('countPast').textContent = timeframeCalls.filter(c => c.status === 'ended').length;
 
-      let filtered = timeframeCalls;
-      if (currentFilter === 'live') filtered = liveCalls;
-      if (currentFilter === 'scheduled') filtered = scheduledCalls;
-      if (currentFilter === 'past') filtered = pastCalls;
-
-      if (filtered.length === 0) {
+      if (filterCalls.length === 0) {
         tableBody.innerHTML = '';
         tableBody.appendChild(emptyRow);
         return;
       }
-      tableBody.innerHTML = '';
 
-      const groupedCalls = new Map();
-      filtered.forEach(c => {
-        const dateObj = new Date(c.startedAt);
-        const dateKey = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-        if (!groupedCalls.has(dateKey)) groupedCalls.set(dateKey, []);
-        groupedCalls.get(dateKey).push(c);
-      });
+      tableBody.innerHTML = filterCalls.map(c => {
+        const isLive = ['in-progress', 'ringing', 'queued'].includes(c.status);
+        const isScheduled = c.status === 'scheduled';
+        
+        let statusBadge = '';
+        if (isLive) {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>${c.status === 'queued' ? 'Queued' : 'Live'}</span>`;
+        } else if (isScheduled) {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Scheduled</span>`;
+        } else {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">Completed</span>`;
+        }
 
-      groupedCalls.forEach((callsInGroup, dateKey) => {
-        const dateHeaderRow = document.createElement('tr');
-        dateHeaderRow.className = 'bg-slate-900/80 border-b border-slate-800/80';
-        dateHeaderRow.innerHTML = `<td colspan="7" class="py-2.5 px-4 font-semibold text-[11px] text-indigo-300 uppercase tracking-widest">${dateKey}</td>`;
-        tableBody.appendChild(dateHeaderRow);
+        const s = c.structuredOutputs || {};
+        const brandStr = normalizeBrand(s.brand) || 'Identifying...';
+        const segStr = normalizeSegment(s.segment);
+        const useCaseStr = normalizeUseCase(s.useCase);
+        const langStr = normalizeLanguage(s.language);
 
-        callsInGroup.forEach(c => {
-          const isExpanded = expandedRows.has(c.id);
-          const isLive = ['in-progress', 'ringing', 'queued'].includes(c.status);
-          const isSched = c.status === 'scheduled';
+        const rowTime = new Date(c.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const rowDate = new Date(c.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeDisplayStr = isScheduled ? formatTimeBucketString(c.bucket) : `${rowDate} • ${rowTime}`;
 
-          let timeDisplay;
-          if (isSched) {
-            timeDisplay = new Date(c.startedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit' });
-          } else {
-            const durSec = Math.max(0, Math.floor(((c.endedAt ? new Date(c.endedAt) : new Date()) - new Date(c.startedAt).getTime()) / 1000));
-            const durStr = `${String(Math.floor(durSec / 60)).padStart(2, '0')}:${String(durSec % 60).padStart(2, '0')}`;
-            timeDisplay = isLive ? durStr : `${new Date(c.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${durStr})`;
-          }
+        const isExpanded = expandedRows.has(c.id);
+        const expandBtnIcon = isExpanded 
+          ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>`
+          : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
 
-          const badgeStyle = isLive
-            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-            : (isSched ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700/60');
+        const ttaVal = parseToSec(s.timeToAgent);
+        const repVal = parseToSec(s.reportedWaitTime);
+        const isTerminating = terminatingCalls.has(c.id);
 
-          const s = c.structuredOutputs || {};
-          const timeSlot = isSched ? formatTimeBucketString(c.bucket) : getTimeSlot(c.startedAt);
-          const brandDisplay = normalizeBrand(s.brand) || 'Manual Entry';
-          const segDisplay = normalizeSegment(s.segment);
-          const useCaseDisplay = normalizeUseCase(s.useCase);
-          const langDisplay = normalizeLanguage(s.language);
-          const ttaSec = parseToSec(s.timeToAgent);
-
-          const configDisplay = `
-            <div class="flex flex-col gap-1">
-              <span class="text-[10px] uppercase font-semibold text-slate-300 tracking-wider">${useCaseDisplay} (${langDisplay})</span>
-              <span class="text-[9px] uppercase font-semibold text-slate-500 tracking-wider">${timeSlot}</span>
+        let actionButtons = '';
+        if (isScheduled) {
+          actionButtons = `<button onclick="cancelScheduledCall('${c.id}', event)" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/20 text-[11px] font-semibold transition">Cancel Schedule</button>`;
+        } else if (isLive) {
+          actionButtons = `
+            <div class="flex items-center justify-end gap-2">
+              <button onclick="openTranscript('${c.id}', event)" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] shadow-sm transition">Live Feed</button>
+              <button onclick="terminateLiveCall('${c.id}', event)" ${isTerminating ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-semibold text-[11px] transition">
+                ${isTerminating ? 'Ending...' : 'Hang Up'}
+              </button>
             </div>`;
+        } else {
+          actionButtons = `<button onclick="openTranscript('${c.id}', event)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-[11px] transition">View Transcript</button>`;
+        }
 
-          const mainRow = document.createElement('tr');
-          mainRow.className = `transition-colors font-mono ${isExpanded ? 'bg-slate-800/30' : 'hover:bg-slate-800/20'}`;
-          mainRow.innerHTML = `
-            <td class="py-3.5 px-4"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStyle}">${isLive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>' : ''}${c.status}</span></td>
-            <td class="py-3.5 px-4 font-sans">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="inline-block px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px]">${brandDisplay}</span>
-                <span class="inline-block px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-medium">${segDisplay}</span>
+        const ivrMarkup = (s.ivrSteps && s.ivrSteps.length > 0)
+          ? s.ivrSteps.map((step, idx) => `<div class="flex items-start gap-2.5 py-1.5"><span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-mono text-[10px] shrink-0 mt-0.5">${idx+1}</span><div class="leading-relaxed"><p class="font-bold text-slate-300">Option: ${step.optionDialed || '—'} <span class="font-normal text-slate-500">(${step.timestampSeconds || '0'}s)</span></p><p class="text-slate-400 mt-0.5">${step.promptHeard || 'Prompt not captured'}</p></div></div>`).join('')
+          : '<span class="text-slate-500 italic">No IVR path details captured for this call attempt.</span>';
+
+        const mainRow = `
+          <tr onclick="toggleRow('${c.id}')" class="hover:bg-slate-900/40 cursor-pointer transition">
+            <td class="py-3.5 px-4">${statusBadge}</td>
+            <td class="py-3.5 px-4 font-mono font-semibold tracking-wide text-white">${c.targetNumber || 'Manual Entry'}</td>
+            <td class="py-3.5 px-4">
+              <div class="font-bold text-slate-200">${brandStr}</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">${segStr} • ${useCaseStr} • ${langStr}</div>
+            </td>
+            <td class="py-3.5 px-4 font-mono font-bold text-slate-300">${formatSecDisplay(repVal)}</td>
+            <td class="py-3.5 px-4 font-mono font-extrabold text-amber-300">${formatSecDisplay(ttaVal)}</td>
+            <td class="py-3.5 px-4 text-slate-400 font-mono">${timeDisplayStr}</td>
+            <td class="py-3.5 px-4" onclick="event.stopPropagation()">
+              <div class="flex items-center justify-end gap-3">
+                ${actionButtons}
+                <button class="text-slate-500 hover:text-slate-300 p-1 rounded transition">${expandBtnIcon}</button>
               </div>
             </td>
-            <td class="py-3.5 px-4 font-sans">${configDisplay}</td>
-            <td class="py-3.5 px-4 text-cyan-400 font-semibold font-sans">${s.waitTimes && s.waitTimes !== '—' ? s.waitTimes : '<span class="text-slate-600">—</span>'}</td>
-            <td class="py-3.5 px-4 text-amber-300 font-medium font-sans">${ttaSec !== null ? formatSecDisplay(ttaSec) : (s.timeToAgent && s.timeToAgent !== '—' ? s.timeToAgent : '<span class="text-slate-600">—</span>')}</td>
-            <td class="py-3.5 px-4 text-slate-400 text-[11px]">${timeDisplay}</td>
-            <td class="py-3.5 px-4 text-right">
-              <div class="flex items-center justify-end gap-1.5">
-                ${isSched ? `<button onclick="cancelScheduledCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">Cancel</button>` : `
-                  <button onclick="openTranscript('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1"><span>${isLive ? 'Live Text' : 'Transcript'}</span></button>
-                  ${isLive ? `<button onclick="endCall('${c.id}', event)" class="font-sans px-2.5 py-1 rounded text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">End</button>` : ''}
-                  <button onclick="toggleRow('${c.id}')" class="font-sans px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded border border-slate-700/80 transition">${isExpanded ? 'Hide ▲' : 'Inspect ▼'}</button>
-                `}
-              </div>
-            </td>
-          `;
-          tableBody.appendChild(mainRow);
+          </tr>`;
 
-          if (isExpanded && !isSched) {
-            const detailRow = document.createElement('tr');
-            detailRow.className = 'bg-slate-950/60 border-b border-slate-800/80';
-            detailRow.innerHTML = `
-              <td colspan="7" class="p-4 sm:p-5 font-sans">
-                <div class="space-y-4">
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Target Number</span>
-                      <div class="text-sm font-mono text-slate-300 mt-1">${c.customerNumber}</div>
-                    </div>
-                    <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Reported Wait</span>
-                      <div class="text-sm font-semibold text-cyan-400 mt-1">${s.waitTimes || '—'}</div>
-                    </div>
-                    <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Time to Agent</span>
-                      <div class="text-sm font-semibold text-amber-300 mt-1">${ttaSec !== null ? formatSecDisplay(ttaSec) : (s.timeToAgent || '—')}</div>
-                    </div>
-                    <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-lg">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">HOOPs</span>
-                      <div class="text-sm font-medium text-slate-200 mt-1">${s.hoops && s.hoops.trim() ? s.hoops : 'None mentioned'}</div>
-                    </div>
+        const detailedRow = isExpanded ? `
+          <tr class="bg-slate-950/40">
+            <td colspan="7" class="p-5">
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs border border-slate-800/80 rounded-xl p-5 bg-slate-950/70">
+                <div class="space-y-4 col-span-1">
+                  <div>
+                    <h4 class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Outbound Meta Info</h4>
+                    <ul class="space-y-2 text-slate-400 font-mono text-[11px]">
+                      <li><span class="text-slate-600">CALL SYSTEM ID:</span> <span class="text-slate-300 select-all">${c.id}</span></li>
+                      <li><span class="text-slate-600">DIALING TARGET:</span> <span class="text-indigo-400">${c.targetNumber || '—'}</span></li>
+                      <li><span class="text-slate-600">DIALING STATUS:</span> <span class="capitalize text-slate-300">${c.status}</span></li>
+                      <li><span class="text-slate-600">TELEMETRY TYPE:</span> <span class="text-indigo-400 font-bold">${langStr} / ${useCaseStr}</span></li>
+                    </ul>
                   </div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">What Was The System Used</span>
-                      <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.systemUsed || 'No system details logged.'}</p>
-                    </div>
-                    <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg flex flex-col justify-start">
-                      <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">IVR VA Options / Path</span>
-                      <p class="text-xs font-normal text-slate-300 mt-2 leading-relaxed">${s.ivrOptions || 'No path options logged.'}</p>
-                    </div>
-                  </div>
-                  <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-lg">
-                    <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Customer Experience to Agent</span>
-                    <p class="text-xs font-normal text-slate-300 mt-1.5 leading-relaxed">${s.cxToAgent && s.cxToAgent.trim() ? s.cxToAgent : 'No customer experience observations recorded.'}</p>
+                  <div class="border-t border-slate-800/60 pt-3">
+                    <h4 class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1">Extracted Diagnostics</h4>
+                    <p class="text-slate-300 font-medium leading-relaxed">${s.summary || 'No diagnostic summary generated.'}</p>
                   </div>
                 </div>
-              </td>`;
-            tableBody.appendChild(detailRow);
-          }
-        });
-      });
+                <div class="space-y-2.5 col-span-1 lg:col-span-2 border-t lg:border-t-0 lg:border-l border-slate-800/80 lg:pl-6">
+                  <h4 class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1">IVR Traversal Log</h4>
+                  <div class="max-h-[220px] overflow-y-auto space-y-1 pr-2">${ivrMarkup}</div>
+                </div>
+              </div>
+            </td>
+          </tr>` : '';
+
+        return mainRow + detailedRow;
+      }).join('');
     }
 
-    setInterval(() => {
-      const hasLive = Array.from(calls.values()).some(c => ['in-progress', 'ringing'].includes(c.status));
-      if (hasLive) render();
-    }, 1000);
+    // Dynamic Filter triggers
+    function setFilter(f) {
+      currentFilter = f;
+      ['all', 'live', 'scheduled', 'past'].forEach(k => {
+        const btn = document.getElementById('btnFilter' + k.charAt(0).toUpperCase() + k.slice(1));
+        if (btn) {
+          btn.className = k === f
+            ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition shadow-sm'
+            : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+        }
+      });
+      render();
+    }
+
+    async function terminateLiveCall(id, e) {
+      if (e) e.stopPropagation();
+      if (!confirm('Are you sure you want to drop this active call?')) return;
+      terminatingCalls.add(id);
+      render();
+      try {
+        await fetch(`/api/calls/terminate/${id}`, { method: 'POST' });
+      } catch (err) {
+        alert('Failed to drop call. Connection error.');
+        terminatingCalls.delete(id);
+        render();
+      }
+    }
+
+    async function cancelScheduledCall(id, e) {
+      if (e) e.stopPropagation();
+      if (!confirm('Cancel this scheduled overlay slot?')) return;
+      try {
+        const res = await fetch(`/api/calls/cancel/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          calls.delete(id);
+          render();
+        } else {
+          alert('Failed to cancel schedule.');
+        }
+      } catch (err) {
+        alert('Connection error.');
+      }
+    }
+
+    // Export Dynamic Grid Model
+    function openExportModal() {
+      document.getElementById('exportPresetSelect').value = 'week';
+      document.getElementById('exportCustomDatesDiv').classList.add('hidden');
+      document.getElementById('exportCustomDatesDiv').classList.remove('grid');
+      updateExportPreviewCount();
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    function handleExportPresetChange() {
+      const val = document.getElementById('exportPresetSelect').value;
+      const customDiv = document.getElementById('exportCustomDatesDiv');
+      if (val === 'custom') {
+        customDiv.classList.remove('hidden');
+        customDiv.classList.add('grid');
+        if (!document.getElementById('exportStartDate').value) {
+          const bounds = getPresetBounds('week');
+          document.getElementById('exportStartDate').value = toLocalYMD(bounds.start);
+          document.getElementById('exportEndDate').value = toLocalYMD(bounds.end);
+        }
+      } else {
+        customDiv.classList.add('hidden');
+        customDiv.classList.remove('grid');
+      }
+      updateExportPreviewCount();
+    }
+
+    function updateExportPreviewCount() {
+      const preset = document.getElementById('exportPresetSelect').value;
+      const startVal = document.getElementById('exportStartDate').value;
+      const endVal = document.getElementById('exportEndDate').value;
+      const bounds = getPresetBounds(preset, startVal, endVal);
+      
+      const allCalls = Array.from(calls.values());
+      const matchCount = allCalls.filter(c => {
+        const cTime = new Date(c.startedAt).getTime();
+        if (bounds.start && cTime < bounds.start.getTime()) return false;
+        if (bounds.end && cTime > bounds.end.getTime()) return false;
+        return true;
+      }).length;
+
+      document.getElementById('exportMatchCount').textContent = `${matchCount} call${matchCount === 1 ? '' : 's'}`;
+    }
+
+    function downloadRawCSV() {
+      const preset = document.getElementById('exportPresetSelect').value;
+      const startVal = document.getElementById('exportStartDate').value;
+      const endVal = document.getElementById('exportEndDate').value;
+      const bounds = getPresetBounds(preset, startVal, endVal);
+      
+      const matchCalls = Array.from(calls.values()).filter(c => {
+        const cTime = new Date(c.startedAt).getTime();
+        if (bounds.start && cTime < bounds.start.getTime()) return false;
+        if (bounds.end && cTime > bounds.end.getTime()) return false;
+        return true;
+      });
+
+      if (matchCalls.length === 0) return alert('No call logs to export.');
+
+      const headers = ['Call ID', 'Target Number', 'Brand', 'Segment', 'Use Case', 'Language', 'Reported Wait', 'Time to Agent', 'Timestamp', 'Status'];
+      const rows = matchCalls.map(c => {
+        const s = c.structuredOutputs || {};
+        return [
+          c.id,
+          c.targetNumber || '',
+          normalizeBrand(s.brand) || '',
+          normalizeSegment(s.segment),
+          normalizeUseCase(s.useCase),
+          normalizeLanguage(s.language),
+          parseToSec(s.reportedWaitTime) || '',
+          parseToSec(s.timeToAgent) || '',
+          c.startedAt,
+          c.status
+        ];
+      });
+
+      let csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `comp_calls_raw_${preset}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function downloadDynamicBrandGrid() {
+      const preset = document.getElementById('exportPresetSelect').value;
+      const startVal = document.getElementById('exportStartDate').value;
+      const endVal = document.getElementById('exportEndDate').value;
+      const bounds = getPresetBounds(preset, startVal, endVal);
+      
+      const matchCalls = Array.from(calls.values()).filter(c => {
+        if (c.status === 'scheduled') return false;
+        const cTime = new Date(c.startedAt).getTime();
+        if (bounds.start && cTime < bounds.start.getTime()) return false;
+        if (bounds.end && cTime > bounds.end.getTime()) return false;
+        return true;
+      });
+
+      const allowedBrands = ['Rogers', 'Telus', 'Videotron', 'Koodo', 'Fido'];
+      const dataMap = {};
+      allowedBrands.forEach(b => {
+        dataMap[b] = {
+          consumer_en: [], consumer_fr: [],
+          smb_en: [], smb_fr: []
+        };
+      });
+
+      matchCalls.forEach(c => {
+        const s = c.structuredOutputs || {};
+        const rawBrand = normalizeBrand(s.brand);
+        if (!rawBrand) return;
+        const matchedBrand = allowedBrands.find(b => b.toLowerCase() === rawBrand.toLowerCase());
+        if (!matchedBrand) return;
+
+        const seg = normalizeSegment(s.segment);
+        const lang = normalizeLanguage(s.language);
+        const ttaSec = parseToSec(s.timeToAgent);
+
+        if (ttaSec !== null) {
+          const key = `${seg.toLowerCase()}_${lang.toLowerCase()}`;
+          if (dataMap[matchedBrand][key]) {
+            dataMap[matchedBrand][key].push(ttaSec);
+          }
+        }
+      });
+
+      const getAvgStr = (arr) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : '';
+
+      const headers = ['Brand', 'Consumer EN AVG', 'Consumer FR AVG', 'Small Business EN AVG', 'Small Business FR AVG'];
+      const rows = allowedBrands.map(b => {
+        const card = dataMap[b];
+        return [
+          b,
+          getAvgStr(card.consumer_en),
+          getAvgStr(card.consumer_fr),
+          getAvgStr(card.smb_en),
+          getAvgStr(card.smb_fr)
+        ];
+      });
+
+      let csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `brand_tta_matrix_${preset}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Outbound Dispatch Conveniences
+    function openNewCallModal() {
+      document.getElementById('brandSelectInput').value = 'Rogers';
+      document.getElementById('segmentSelectInput').value = 'Consumer';
+      document.getElementById('useCaseSelectInput').value = 'Billing';
+      document.getElementById('languageSelectInput').value = 'English';
+      document.getElementById('scheduleDateInput').value = '';
+      document.getElementById('scheduleBucketInput').value = '';
+      document.getElementById('customBucketStart').value = '';
+      document.getElementById('customBucketEnd').value = '';
+      document.getElementById('customBucketDiv').classList.add('hidden');
+      document.getElementById('customBucketDiv').classList.remove('flex');
+      autoFillNumber();
+      document.getElementById('newCallModal').classList.remove('hidden');
+    }
+
+    function closeNewCallModal() {
+      document.getElementById('newCallModal').classList.add('hidden');
+    }
+
+    async function initiateNewCall() {
+      const brand = document.getElementById('brandSelectInput').value;
+      const customBrandName = document.getElementById('customBrandNameInput').value;
+      const targetNumber = document.getElementById('targetNumberInput').value;
+      const segment = document.getElementById('segmentSelectInput').value;
+      const useCase = document.getElementById('useCaseSelectInput').value;
+      const language = document.getElementById('languageSelectInput').value;
+      const dateVal = document.getElementById('scheduleDateInput').value;
+      let bucketVal = document.getElementById('scheduleBucketInput').value;
+
+      if (!targetNumber) return alert('Dialing target is mandatory.');
+
+      if (bucketVal === 'custom') {
+        const sh = parseInt(document.getElementById('customBucketStart').value, 10);
+        const eh = parseInt(document.getElementById('customBucketEnd').value, 10);
+        if (isNaN(sh) || isNaN(eh) || sh >= eh || sh < 0 || eh > 24) {
+          return alert('Please enter a valid custom hour slot.');
+        }
+        bucketVal = `${sh},${eh}`;
+      }
+
+      let scheduleAtStr = null;
+      if (dateVal && bucketVal) {
+        const [startHour, endHour] = bucketVal.split(',').map(Number);
+        const [year, month, day] = dateVal.split('-').map(Number);
+        const scheduledDate = new Date(year, month - 1, day);
+        
+        const randomHour = Math.floor(Math.random() * (endHour - startHour)) + startHour;
+        const randomMinute = Math.floor(Math.random() * 60);
+        scheduledDate.setHours(randomHour, randomMinute, 0, 0);
+
+        if (scheduledDate.getTime() < Date.now()) {
+          return alert('The selected window is in the past. Please enter a future scheduling slot.');
+        }
+        scheduleAtStr = scheduledDate.toISOString();
+      }
+
+      const btn = document.getElementById('initiateCallBtn');
+      btn.disabled = true;
+      btn.innerHTML = 'Dispatching...';
+
+      try {
+        const payload = {
+          targetNumber,
+          brand: brand === 'Other' ? customBrandName : brand,
+          segment,
+          useCase,
+          language
+        };
+        if (scheduleAtStr) {
+          payload.scheduleAt = scheduleAtStr;
+          payload.scheduleBucket = bucketVal;
+        }
+
+        const res = await fetch('/api/calls/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert(scheduleAtStr ? 'Campaign overlay slot scheduled successfully!' : 'Call campaign dispatched successfully.');
+          closeNewCallModal();
+          setFilter(scheduleAtStr ? 'scheduled' : 'live');
+        } else {
+          const err = await res.json();
+          alert(`Failed to dispatch call campaign: ${err.message || 'Error occurred.'}`);
+        }
+      } catch (err) {
+        alert('Server connectivity error.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Dispatch Campaign';
+      }
+    }
   </script>
 </body>
 </html>
