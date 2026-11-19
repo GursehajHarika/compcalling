@@ -25,7 +25,7 @@ const AGENTS = {
   'sales_french': process.env.VAPI_SALES_FR_ID || VAPI_ASSISTANT_ID,
 };
 
-// Fallback number lookup for older historical Vapi calls without metadata
+// Fallback number lookup for historical Vapi calls without metadata
 const NUMBER_FALLBACK_MAP = {
   '+18887643771': { brand: 'Rogers', segment: 'Consumer' },
   '+18667272141': { brand: 'Rogers', segment: 'Small Business', useCase: 'Billing' },
@@ -36,6 +36,7 @@ const NUMBER_FALLBACK_MAP = {
   '+18665582273': { brand: 'Telus', segment: 'Consumer' },
   '+18888112323': { brand: 'Telus', segment: 'Small Business' },
   '+18775120911': { brand: 'Videotron', segment: 'Consumer' },
+  '+18775128590': { brand: 'Videotron', segment: 'Small Business' },
   '+18883823366': { brand: 'Videotron', segment: 'Small Business' },
   '+18884813436': { brand: 'Fido', segment: 'Consumer' },
   '+18889992321': { brand: 'Virgin Plus', segment: 'Consumer' },
@@ -339,7 +340,7 @@ app.post('/api/calls/start', async (req, res) => {
           }
         }
 
-        const fakeId = 'sched_' + Date.now();
+        const fakeId = 'sched_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         const scheduledRecord = {
           id: fakeId,
           status: 'scheduled',
@@ -374,7 +375,7 @@ app.post('/api/calls/start', async (req, res) => {
   }
 });
 
-app.delete('/api/calls/schedule/:id', (req, res) => {
+function handleCancelScheduled(req, res) {
   const { id } = req.params;
   if (callStore.has(id) && callStore.get(id).status === 'scheduled') {
     callStore.delete(id);
@@ -383,9 +384,11 @@ app.delete('/api/calls/schedule/:id', (req, res) => {
     return res.json({ success: true });
   }
   return res.status(404).json({ error: 'Scheduled call not found' });
-});
+}
+app.delete('/api/calls/schedule/:id', handleCancelScheduled);
+app.delete('/api/calls/cancel/:id', handleCancelScheduled);
 
-app.post('/api/calls/:id/end', async (req, res) => {
+async function handleEndCall(req, res) {
   const { id } = req.params;
   if (!VAPI_SECRET) return res.status(500).json({ error: 'Missing VAPI key' });
   try {
@@ -402,7 +405,9 @@ app.post('/api/calls/:id/end', async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-});
+}
+app.post('/api/calls/:id/end', handleEndCall);
+app.post('/api/calls/terminate/:id', handleEndCall);
 
 // Health check routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
