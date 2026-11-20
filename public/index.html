@@ -580,6 +580,21 @@
       return null;
     }
 
+    // Export error-check: if Reported Wait > Time to Agent, add Reported Wait to Time to Agent
+    function getAdjustedTTASec(structuredOutputs) {
+      const s = structuredOutputs || {};
+      const ttaSec = parseToSec(s.timeToAgent);
+      if (ttaSec === null) return null;
+      const rawWait = (s.waitTimes !== undefined && s.waitTimes !== null && s.waitTimes !== '—')
+        ? s.waitTimes
+        : s.reportedWaitTime;
+      const waitSec = parseToSec(rawWait);
+      if (waitSec !== null && waitSec > ttaSec) {
+        return ttaSec + waitSec;
+      }
+      return ttaSec;
+    }
+
     function formatSecDisplay(seconds) {
       if (seconds === null || seconds === undefined || isNaN(seconds)) return '—';
       return `${Math.round(seconds)}s`;
@@ -1332,7 +1347,7 @@
         wb.creator = 'Comp Calling';
         wb.created = new Date();
         const ws = wb.addWorksheet('Telemetry Matrix', {
-          views: [{ showGridLines: true }]
+          views: [{ showGridLines: false }]
         });
 
         // Brand Palette matching spreadsheet color codes exactly
@@ -1386,7 +1401,7 @@
           let sum = 0;
           let count = 0;
           filtered.forEach(c => {
-            const sec = parseToSec(c.structuredOutputs?.timeToAgent);
+            const sec = getAdjustedTTASec(c.structuredOutputs);
             if (sec !== null) {
               sum += sec;
               count++;
@@ -1590,14 +1605,15 @@
 
       const headers = [
         'Call ID', 'Status', 'Brand', 'Segment', 'Use Case', 'Language', 'Target Number',
-        'Reported Wait', 'Time to Agent', 'Time to Agent (Sec)', 'System Used', 'HOOPs',
-        'Customer Experience', 'IVR Options', 'Start Time', 'End Time'
+        'Reported Wait', 'Time to Agent', 'Time to Agent (Sec)', 'Adjusted Time to Agent (Sec)',
+        'System Used', 'HOOPs', 'Customer Experience', 'IVR Options', 'Start Time', 'End Time'
       ];
       const esc = (v) => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ')}"`;
 
       const rows = matched.map(c => {
         const s = c.structuredOutputs || {};
         const ttaSec = parseToSec(s.timeToAgent);
+        const adjustedTtaSec = getAdjustedTTASec(s);
         return [
           c.id,
           c.status,
@@ -1609,6 +1625,7 @@
           s.waitTimes || '',
           s.timeToAgent || '',
           ttaSec !== null ? ttaSec : '',
+          adjustedTtaSec !== null ? adjustedTtaSec : '',
           s.systemUsed || '',
           s.hoops || '',
           s.cxToAgent || '',
